@@ -97,6 +97,26 @@ class ServicesControllerController extends Controller
             }
                 
         return $data=['deposit'=>$deposit,'services'=>$services] ;
+    }   
+    
+    /**
+     * paginated articles for a deposit
+     */
+    public function articlesdepositpaginated(Request $request){
+        $services=[];
+        $deposit= new stdClass;
+        if (isset($request['deposit_id']) && !empty($request['deposit_id'])) {
+            $deposit=DepositController::find($request['deposit_id']);
+            if ($deposit) {
+                //getting services for deposit
+                $services=DepositServices::where('deposit_id','=',$deposit->id)->paginate(40);
+                $services->getCollection()->transform(function ($item){
+                    return $item=$this->servicedetail($item);
+                });
+            }
+        }
+                  
+        return $services ;
     } 
     
     /**
