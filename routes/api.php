@@ -243,7 +243,7 @@ Route::post('/deposits/participants',[DepositControllerController::class,'partic
 Route::post('/deposit/addservices',[DepositControllerController::class,'addservices']);
 Route::post('/deposit/services/delete',[DepositControllerController::class,'withdrawServices']);
 Route::post('/deposit/users',[DepositControllerController::class,'depositForUser']);
-Route::post('/deposit/articlesdepositpaginated',[ServicesControllerController::class,'articlesdepositpaginated']);
+Route::get('/deposit/articlesdepositpaginated/{depositid}',[ServicesControllerController::class,'articlesdepositpaginated']);
 Route::post('/deposit/reset',[DepositControllerController::class,'reset']);
 
 //Deposits users
