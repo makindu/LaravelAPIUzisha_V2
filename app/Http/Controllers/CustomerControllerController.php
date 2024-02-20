@@ -30,7 +30,7 @@ class CustomerControllerController extends Controller
     
      public function search($enterpriseid){
     
-        $list=CustomerController::where('enterprise_id','=',$enterpriseid)->paginate(100);
+        $list=CustomerController::where('enterprise_id','=',$enterpriseid)->paginate(40);
         $list->getCollection()->transform(function ($item){
             return $this->show($item);
         });

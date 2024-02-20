@@ -244,6 +244,7 @@ Route::post('/deposit/addservices',[DepositControllerController::class,'addservi
 Route::post('/deposit/services/delete',[DepositControllerController::class,'withdrawServices']);
 Route::post('/deposit/users',[DepositControllerController::class,'depositForUser']);
 Route::get('/deposit/articlesdepositpaginated/{depositid}',[ServicesControllerController::class,'articlesdepositpaginated']);
+Route::get('/deposit/all-articles-paginated/{userid}',[ServicesControllerController::class,'depositsandarticlespaginated']);
 Route::post('/deposit/reset',[DepositControllerController::class,'reset']);
 
 //Deposits users

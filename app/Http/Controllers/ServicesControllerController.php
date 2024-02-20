@@ -117,7 +117,37 @@ class ServicesControllerController extends Controller
         }
                   
         return $services ;
+    }
+    
+    
+    /**
+     * paginated articles for a deposit
+     */
+    public function depositsandarticlespaginated($userid){
+        $deposits=[];
+        $services=[];
+        $user=$this->getinfosuser($userid);
+        $enterprise=$this->getEse($user['id']);
+        if ($user['user_type']=='super_admin') {
+            $deposits=DepositController::where('enterprise_id','=',$enterprise['id'])->get("deposit_controllers.id");
+        } else {
+            $deposits=DepositsUsers::join('deposit_controllers as D','deposits_users.deposit_id','=','D.id')->where('deposits_users.user_id','=',$userid)->get('D.id');
+        }
+        
+        $deposits=$deposits->pluck('id')->toArray();
+    
+        if (count($deposits)>0) {
+            //getting services for all deposits
+            $services=DepositServices::whereIn('deposit_id',$deposits)->paginate(50);
+            $services->getCollection()->transform(function ($item){
+                return $item=$this->servicedetail($item);
+            });
+        }
+                  
+        return $services ;
     } 
+
+
     
     /**
      * searching data by word for a specific deposit
