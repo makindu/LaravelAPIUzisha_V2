@@ -330,7 +330,7 @@ class ServicesControllerController extends Controller
         ->where('deposit_services.deposit_id','=',$servicesController['deposit_id'])
         ->get(['deposit_services.available_qte','deposit_services.deposit_id','C.name as category_name','U.name as uom_name','U.symbol as uom_symbol','services_controllers.*'])[0];
         
-        return ['quantity'=>$service['available_qte'],'service'=>$service,'prices'=>$prices];
+        return ['deposit_id'=>$servicesController['deposit_id'],'quantity'=>$service['available_qte'],'service'=>$service,'prices'=>$prices];
     }
     
     public function depositarticles($deposit_id){
