@@ -3,9 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Cautions;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreCautionsRequest;
 use App\Http\Requests\UpdateCautionsRequest;
-use Illuminate\Http\Request;
 
 class CautionsController extends Controller
 {
@@ -48,7 +49,13 @@ class CautionsController extends Controller
         }
 
         $request['uuid']=$this->getUuId('CA','C');
-        return $this->show(Cautions::create($request->all()));
+        $newcaution=Cautions::create($request->all());
+        if($newcaution){
+            //update the caution in customer model
+            DB::update('update customer_controllers set totalcautions = totalcautions + ? where id = ?',[$newcaution['amount'],$newcaution['customer_id']]);
+        }
+   
+        return $this->show($newcaution);
     }
 
     /**

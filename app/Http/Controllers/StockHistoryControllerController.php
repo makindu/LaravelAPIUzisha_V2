@@ -41,6 +41,29 @@ class StockHistoryControllerController extends Controller
     }
 
     /**
+     * multiple save
+     */
+    public function multiplestore(Request $request){
+        $data=[];
+        $failed=[];
+       if (isset($request['data']) && !empty($request['data']) && count($request['data'])>0) {
+            foreach ($request['data'] as $value) {
+                $new = $this->store(new StoreStockHistoryControllerRequest($value));
+                if ($new) {
+                   array_push($data,$new);
+                }else{
+                   array_push($failed,$new);
+                }
+            }
+       } 
+        
+       return response()->json([
+        "data"=>$data,
+        "failed"=>$failed
+       ]);
+    }
+
+    /**
      * Store a newly created resource in storage.
      *
      * @param  \App\Http\Requests\StoreStockHistoryControllerRequest  $request
@@ -78,6 +101,17 @@ class StockHistoryControllerController extends Controller
         }else if($request['type']=='withdraw'){
 
             if($request['quantity_before']>=$request['quantity']){
+                //looking for method for the deposit
+                $actualdeposit=DepositController::find($request['depot_id']);
+                if ($actualdeposit) {
+                    if ($actualdeposit['withdrawing_method']=="fifo") {
+                        # code...
+                    }else if($actualdeposit['withdrawing_method']=="lifo"){
+
+                    }else{
+
+                    }
+                }
                 DB::update('update deposit_services set available_qte = available_qte - ? where service_id = ? and deposit_id = ?',[$request['quantity'],$request['service_id'],$request['depot_id']]);
                 return $this->show(StockHistoryController::create($request->all()));
             }
@@ -282,8 +316,7 @@ class StockHistoryControllerController extends Controller
         }
 
         if ($user['user_type']=='super_admin') {
-            $services=StockHistoryController::where('type','=','entry')
-            ->where('enterprise_id','=',$enterprise['id'])
+            $services=StockHistoryController::where('enterprise_id','=',$enterprise['id'])
             ->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
             ->select('service_id')
             ->groupBy('service_id')
@@ -292,10 +325,13 @@ class StockHistoryControllerController extends Controller
                 $entries=StockHistoryController::select(DB::raw('sum(quantity) as totalEntries'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('service_id','=',$service['service_id'])->where('type','=','entry')->get('totalEntries')->first();
                 $withdraw=StockHistoryController::select(DB::raw('sum(quantity) as totalWithdraw'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('service_id','=',$service['service_id'])->where('type','=','withdraw')->get('totalWithdraw')->first();
                 $before=StockHistoryController::select(DB::raw('sum(quantity_before) as totalBefore'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('service_id','=',$service['service_id'])->get('totalBefore')->first();
+                $soldinventory=DepositServices::join('deposit_controllers as DC','deposit_services.deposit_id','=','DC.id')->select(DB::raw('sum(available_qte) as soldinventory'))->where('service_id','=',$service['service_id'])->where('DC.enterprise_id','=',$enterprise['id'])->get('soldinventory')->first();
+                
                 $service['totalEntries']=$entries['totalEntries'];
                 $service['totalWithdraw']=$withdraw['totalWithdraw'];
                 $service['sold']=$entries['totalEntries']-$withdraw['totalWithdraw'];
                 $service['totalBefore']=$before['totalBefore'];
+                $service['soldinventory']=$soldinventory['soldinventory'];
                 $service['service']=$serviceCtrl->show(ServicesController::find($service['service_id']))['service'];
                 array_push($list_data,$service);
             }
@@ -303,8 +339,7 @@ class StockHistoryControllerController extends Controller
         } else {
             $deposits=DepositsUsers::join('deposit_controllers as D','deposits_users.deposit_id','=','D.id')->where('deposits_users.user_id','=',$request->user_id)->get('D.*');
             foreach ($deposits as $deposit) {
-                $services=StockHistoryController::where('type','=','entry')
-                ->where('depot_id','=',$deposit->id)
+                $services=StockHistoryController::where('depot_id','=',$deposit->id)
                 ->where('user_id','=',$request->user_id)
                 ->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                 ->select('service_id')
@@ -315,10 +350,12 @@ class StockHistoryControllerController extends Controller
                     $entries=StockHistoryController::select(DB::raw('sum(quantity) as totalEntries'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('depot_id','=',$deposit->id)->where('service_id','=',$service['service_id'])->where('type','=','entry')->where('user_id','=',$request->user_id)->get('totalEntries')->first();
                     $withdraw=StockHistoryController::select(DB::raw('sum(quantity) as totalWithdraw'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('depot_id','=',$deposit->id)->where('service_id','=',$service['service_id'])->where('type','=','withdraw')->where('user_id','=',$request->user_id)->get('totalWithdraw')->first();
                     $before=StockHistoryController::select(DB::raw('sum(quantity_before) as totalBefore'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('depot_id','=',$deposit->id)->where('service_id','=',$service['service_id'])->where('user_id','=',$request->user_id)->get('totalBefore')->last();
+                    $soldinventory=DepositServices::join('deposits_users as DU','deposit_services.deposit_id','=','DU.deposit_id')->select(DB::raw('sum(available_qte) as soldinventory'))->where('service_id','=',$service['service_id'])->where('DU.user_id','=',$request->user_id)->get('soldinventory')->first();
                     $service['totalEntries']=$entries['totalEntries'];
                     $service['totalWithdraw']=$withdraw['totalWithdraw'];
                     $service['sold']=$entries['totalEntries']-$withdraw['totalWithdraw'];
-                    // $service['totalBefore']=$before['totalBefore'];
+                    $service['totalBefore']=$before['totalBefore'];
+                    $service['soldinventory']=$soldinventory['soldinventory'];
                     $service['service']=$serviceCtrl->show(ServicesController::find($service['service_id']))['service'];
                     array_push($list_data,$service);
                 }

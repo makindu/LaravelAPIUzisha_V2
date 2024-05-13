@@ -13,6 +13,7 @@ class DepositController extends Model
         'name',
         'description',
         'type',
+        'withdrawing_method',
         'enterprise_id'
     ];
 }

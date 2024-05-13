@@ -97,6 +97,7 @@ class DepositControllerController extends Controller
         
         return $deposits; 
     }
+
     /**
      * Get participants
      */
@@ -291,5 +292,62 @@ class DepositControllerController extends Controller
         // StockHistoryController::where('deposit_id','=',$id)->delete(); //deleting stockhistory
         
        return DepositController::find($id)->delete();
+    }
+
+    //rollback deposit with they lastquantity
+    function rollbackdepositquantities(){
+        $deposits=collect(DepositController::where('enterprise_id','<>',1)->get());
+        // $deposits=collect(DepositController::all());
+        $deposits->map(function ($deposit){
+            //if deposit has group type take all services and affect them
+            if ($deposit['type']=='group') {
+                $services_types=collect(ServicesController::where('enterprise_id','=',$deposit['enterprise_id'])->where('type','=','2')->get());
+                $services_types->map(function ($serv) use ($deposit){
+                    DepositServices::create([
+                        'deposit_id'=>$deposit['id'],
+                        'service_id'=>$serv['id'],
+                        'available_qte'=>0
+                    ]);
+                });
+                $deposit['services_types']=$services_types;
+            }
+
+            $deposit['services']=collect(StockHistoryController::
+                select('service_id')
+                ->where('depot_id','=',$deposit['id'])
+                ->groupByRaw('service_id')
+                ->get());
+
+                $deposit['services']->map(function ($service) use ($deposit){
+                    $entries =StockHistoryController::
+                            select(DB::raw('sum(quantity) as total_entries'))
+                            ->where('depot_id','=',$deposit['id'])
+                            ->where('service_id','=',$service['service_id'])
+                            ->where('type','=','entry')
+                            ->get('total_entries')->first();
+                            
+                            $withdraw =StockHistoryController::
+                            select(DB::raw('sum(quantity) as total_withdraw'))
+                            ->where('depot_id','=',$deposit['id'])
+                            ->where('service_id','=',$service['service_id'])
+                            ->where('type','=','withdraw')
+                            ->get('total_withdraw')->first();
+
+                    $service['total_entries']=$entries['total_entries'];
+                    $service['total_withdraw']=$withdraw['total_withdraw'];
+                    $service['available']=$entries['total_entries']-$withdraw['total_withdraw'];
+                    //affect values
+                    DepositServices::create([
+                        'deposit_id'=>$deposit['id'],
+                        'service_id'=>$service['service_id'],
+                        'available_qte'=>$service['available']
+                    ]);
+
+                    return $service;
+                });
+
+                return $deposit;
+        });
+        return $deposits;
     }
 }

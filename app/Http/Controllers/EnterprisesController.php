@@ -20,6 +20,14 @@ use App\Models\CategoriesCustomerController;
 use App\Models\CategoriesServicesController;
 use App\Http\Requests\StoreEnterprisesRequest;
 use App\Http\Requests\UpdateEnterprisesRequest;
+use App\Models\CustomerController;
+use App\Models\Debts;
+use App\Models\DepositServices;
+use App\Models\Expenditures;
+use App\Models\Fences;
+use App\Models\Invoices;
+use App\Models\OtherEntries;
+use App\Models\StockHistoryController;
 use Illuminate\Http\Request;
 
 class EnterprisesController extends Controller
@@ -328,5 +336,80 @@ class EnterprisesController extends Controller
     public function destroy(Enterprises $enterprises)
     {
        return Enterprises::destroy($enterprises);
+    }
+
+    /**
+     * reset all data
+     */
+    public function resetalldata(Request $request){
+        $User=$this->getinfosuser($request['user_id']);
+        $Ese=$this->getEse($User['id']);
+
+        if ($User && $Ese && $User['user_type']=="super_admin" && $User['status']=="enabled") {
+            //delete customers
+            $customers=CustomerController::where("enterprise_id","=",$Ese['id'])->get();
+            if (count($customers)>0) {
+                $delete=CustomerController::where("enterprise_id","=",$Ese['id'])->delete();
+            }
+
+            //reset deposit quantities
+            $deposit_services=DepositServices::join("deposit_controllers as D","deposit_services.deposit_id","=","D.id")
+                                ->where("D.enterprise_id","=",$Ese['id'])->get('deposit_services.*');
+            //update quantities
+            if (count($deposit_services)>0) {
+               $deposit_services->toQuery()->update(['available_qte'=>0]);
+            }
+           //delete all expenditures
+            $expenditures=Expenditures::where("enterprise_id","=",$Ese['id'])->get();
+            if (count($expenditures)>0) {
+                    $delete=Expenditures::where("enterprise_id","=",$Ese['id'])->delete();
+            }
+             //Debts
+             $debts=Debts::join("invoices as I","debts.invoice_id","=","I.id")->where("I.enterprise_id","=",$Ese['id'])->get();
+             if (count($debts)>0) {
+                 //delete payments
+                 DB::table('debt_payments')->whereIn('debt_id', $debts->pluck('id'))->delete();
+                 $delete=Debts::join("invoices as I","debts.invoice_id","=","I.id")->where("I.enterprise_id","=",$Ese['id'])->delete();
+             }
+
+        //     //invoices
+            $invoices=Invoices::where("enterprise_id","=",$Ese['id'])->get();
+            if (count($invoices)>0) {
+                    //delete details
+                    DB::table('invoice_details')->whereIn('invoice_id', $invoices->pluck('id'))->delete();
+                    $delete=Invoices::where("enterprise_id","=",$Ese['id'])->delete();
+            }
+
+        //    //other entries
+           $entries=OtherEntries::where("enterprise_id","=",$Ese['id'])->get();
+           if (count($entries)>0) {
+                //delete
+                $delete=OtherEntries::where("enterprise_id","=",$Ese['id'])->delete();
+            }
+
+        //     //Fences
+            $fences=Fences::where("enterprise_id","=",$Ese['id'])->get();
+            if (count($fences)>0) {
+                 //delete details
+                 DB::table('fence_ticketings')->whereIn('fence_id', $fences->pluck('id'))->delete();
+                 $delete=Fences::where("enterprise_id","=",$Ese['id'])->delete();
+            }
+
+        //     //Stock Histories
+            $stockstories=StockHistoryController::where("enterprise_id","=",$Ese['id'])->get();
+            if(count($stockstories)>0){
+                $delete=StockHistoryController::where("enterprise_id","=",$Ese['id'])->delete();
+            }
+
+            return response()->json([
+                "status"=>200,
+                "message"=>"success"
+            ]);    
+        }else{
+            return response()->json([
+                "status"=>404,
+                "message"=>"unauthorized user"
+            ]);
+        }
     }
 }

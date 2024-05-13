@@ -28,6 +28,9 @@ class Enterprises extends Model
         'uuid',	
         'sync_status',
         'user_id',
-        'status'
+        'status',
+        'invoicefooter',
+        'fidelitypointvalue',	
+        'fidelitydefaultmode'	
     ];
 }

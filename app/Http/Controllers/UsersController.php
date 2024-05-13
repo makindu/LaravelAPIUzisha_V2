@@ -1,6 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
+
+use App\Mail\DefaultMail;
 use App\Models\User;
 use App\Models\Debts;
 use App\Models\Fences;
@@ -12,13 +14,17 @@ use Illuminate\Http\Request;
 use App\Models\usersenterprise;
 use App\Models\affectation_users;
 use App\Models\Cautions;
+use App\Models\customerspointshistory;
 use App\Models\DebtPayments;
 use App\Models\DepositController;
 use App\Models\DepositsUsers;
 use App\Models\money_conversion;
+use App\Models\passwordreset;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use stdClass;
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
 
 class UsersController extends Controller
 {
@@ -29,6 +35,110 @@ class UsersController extends Controller
             return $this->show(user::find($item['user_id']));
         });
         return $listdata;
+    }
+
+    public function ifexistsemailadress(Request $request){
+        $user= new stdClass;
+        if ($request['criteria']==="checking") {
+          $user=User::where('user_mail','=',$request['value'])->first();
+
+          if($user){
+            // $request['token']=$this->getuuid('C','PS');
+            // $request['email']=$user['user_mail'];
+            $tokesent=passwordreset::create(
+                [
+                    'token'=>$this->getuuid('C','PS'),
+                    'email'=>$user['user_mail']
+                ]    
+            );
+            // $mail= new PHPMailer(true);
+            //send mail
+            // try {
+            //     $request['token']=$this->getuuid('C','PS');
+            //     $request['email']=$user['user_mail'];
+            //     $tokesent=passwordreset::create($request);
+            //     if ( $tokesent) {
+            //         return response()->json([
+            //             'data'=>$user,
+            //             'status'=>200,
+            //             'message'=>"find and mail sent"
+            //         ]);
+            //     }else{
+            //         return response()->json([
+            //             'data'=>$user,
+            //             'status'=>204,
+            //             'message'=>"find but mail not sent"
+            //         ]);
+            //     }
+               
+
+            // } catch (Exception $e) {
+            //      return response()->json([
+            //     'data'=>$user,
+            //     'status'=>500,
+            //     'message'=>"error sending mail".$e->getMessage()
+            // ]);
+            // }
+            return response()->json([
+                'data'=>$user,
+                'status'=>200,
+                'message'=>"find"
+            ]);
+           
+          }else{
+            return response()->json([
+                'data'=>$user,
+                'status'=>204,
+                'message'=>"not find"
+            ]);
+          }
+        }else{
+            return response()->json([
+                'data'=>$user,
+                'status'=>204,
+                'message'=>"no criteria"
+            ]); 
+        }
+
+    }
+
+    public function superadminfidelityreport(Request $request, $userId){
+        $user=$this->getinfosuser($userId);
+        $ese=$this->getEse($user['id']);
+        $defautmoney=$this->defaultmoney($ese['id']);
+          
+        $totalEntriesPoints=0;
+        $totalSellBypoints=0;
+        $totalEntriesBonus=0;
+        $totalSellByBonus=0;
+        $totalEntriesCautions=0;
+        $totalSellByCautions=0;
+
+        if($user && $ese){
+            //Points bloc
+            $points=customerspointshistory::join('customer_controllers as C','customerspointshistories.customer_id','=','C.id')->select(DB::raw('sum(value) as totalPoints'))->whereBetween('customerspointshistories.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('customerspointshistories.type','=','point')->where('C.enterprise_id','=',$ese['id'])->get('totalPoints')->first();
+            $totalEntriesPoints=$points['totalPoints'];
+            
+            $sellbypoints=Invoices::select(DB::raw('sum(netToPay) as totalSellByPoints'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','point')->where('enterprise_id','=',$ese['id'])->get('totalSellByPoints')->first();
+            $totalSellBypoints=$sellbypoints['totalSellByPoints'];
+
+            //Bonus bloc
+            $bonus=customerspointshistory::join('customer_controllers as C','customerspointshistories.customer_id','=','C.id')->select(DB::raw('sum(value) as totalBonus'))->whereBetween('customerspointshistories.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('customerspointshistories.type','=','bonus')->where('C.enterprise_id','=',$ese['id'])->get('totalBonus')->first();
+            $totalEntriesBonus=$bonus['totalBonus'];
+            
+            $sellbybonus=Invoices::select(DB::raw('sum(netToPay) as totalSellByBonus'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','bonus')->where('enterprise_id','=',$ese['id'])->get('totalSellByBonus')->first();
+            $totalSellByBonus=$sellbybonus['totalSellByBonus'];
+
+            //caution bloc
+            $caution=Cautions::select(DB::raw('sum(amount) as totalCaution'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('enterprise_id','=',$ese['id'])->get('totalCaution')->first();
+            $totalEntriesCautions=$caution['totalCaution'];
+            
+            $sellbycaution=Invoices::select(DB::raw('sum(netToPay) as totalSellByCautions'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','caution')->where('enterprise_id','=',$ese['id'])->get('totalSellByCautions')->first();
+            $totalSellByCautions=$sellbycaution['totalSellByCautions'];
+        }
+          
+
+        return ['totalEntriesCautions'=>$totalEntriesCautions,'totalSellByCautions'=>$totalSellByCautions,'totalSellByBonus'=>$totalSellByBonus,'totalEntriesBonus'=>$totalEntriesBonus,'totalSellBypoints'=>$totalSellBypoints,'totalEntriesPoints'=>$totalEntriesPoints,'default_money'=>$defautmoney];
     }
 
     public function dashboard(Request $request,$userId){
@@ -44,6 +154,12 @@ class UsersController extends Controller
         $total_debts=0;
         $total_accounts=0;
         
+        $totalEntriesPoints=0;
+        $totalSellBypoints=0;
+        $totalEntriesBonus=0;
+        $totalSellByBonus=0;
+        $totalEntriesCautions=0;
+        $totalSellByCautions=0;
         $cash=[];
         $credits=[];
         $entries=[];
@@ -60,6 +176,29 @@ class UsersController extends Controller
             
             //getting data for the Super Admin
             if ($user['user_type']=='super_admin') {
+                //fidelity report
+
+                //Points bloc
+                $points=customerspointshistory::join('customer_controllers as C','customerspointshistories.customer_id','=','C.id')->select(DB::raw('sum(value) as totalPoints'))->whereBetween('customerspointshistories.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('customerspointshistories.type','=','point')->where('C.enterprise_id','=',$ese['id'])->get('totalPoints')->first();
+                $totalEntriesPoints=$points['totalPoints'];
+                
+                $sellbypoints=Invoices::select(DB::raw('sum(netToPay) as totalSellByPoints'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','point')->where('enterprise_id','=',$ese['id'])->get('totalSellByPoints')->first();
+                $totalSellBypoints=$sellbypoints['totalSellByPoints'];
+
+                //Bonus bloc
+                $bonus=customerspointshistory::join('customer_controllers as C','customerspointshistories.customer_id','=','C.id')->select(DB::raw('sum(value) as totalBonus'))->whereBetween('customerspointshistories.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('customerspointshistories.type','=','bonus')->where('C.enterprise_id','=',$ese['id'])->get('totalBonus')->first();
+                $totalEntriesBonus=$bonus['totalBonus'];
+                
+                $sellbybonus=Invoices::select(DB::raw('sum(netToPay) as totalSellByBonus'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','bonus')->where('enterprise_id','=',$ese['id'])->get('totalSellByBonus')->first();
+                $totalSellByBonus=$sellbybonus['totalSellByBonus'];
+
+                //caution bloc
+                $caution=Cautions::select(DB::raw('sum(amount) as totalCaution'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('enterprise_id','=',$ese['id'])->get('totalCaution')->first();
+                $totalEntriesCautions=$caution['totalCaution'];
+                
+                $sellbycaution=Invoices::select(DB::raw('sum(netToPay) as totalSellByCautions'))->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','caution')->where('enterprise_id','=',$ese['id'])->get('totalSellByCautions')->first();
+                $totalSellByCautions=$sellbycaution['totalSellByCautions'];
+
                 //cash
                 $cash=Invoices::whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','cash')->where('enterprise_id','=',$ese['id'])->get();
                 foreach ($cash as $invoice) {
@@ -384,7 +523,7 @@ class UsersController extends Controller
           $msg="not fund";
         }
         
-        return ['total_accounts'=>$total_account_entries+$total_account_expenditures,'default_money'=>$defautmoney,'from'=>$request['from'],'to'=>$request['to'],'message'=>$msg,'total_cash'=>$total_cash,'total_credits'=>$total_credits,'total_entries'=>$total_entries,'total_expenditures'=>$total_expenditures,'total_fences'=>$total_fences,'total_debts'=>$total_debts,'cash'=>$cash,'credits'=>$credits,'expenditures'=>$expenditures,'entries'=>$entries,'fences'=>$fences,'debts'=>$debts,'accounts'=>$accounts];
+        return ['totalEntriesCautions'=>$totalEntriesCautions,'totalSellByCautions'=>$totalSellByCautions,'totalSellByBonus'=>$totalSellByBonus,'totalEntriesBonus'=>$totalEntriesBonus,'totalSellBypoints'=>$totalSellBypoints,'totalEntriesPoints'=>$totalEntriesPoints,'total_accounts'=>$total_account_entries+$total_account_expenditures,'default_money'=>$defautmoney,'from'=>$request['from'],'to'=>$request['to'],'message'=>$msg,'total_cash'=>$total_cash,'total_credits'=>$total_credits,'total_entries'=>$total_entries,'total_expenditures'=>$total_expenditures,'total_fences'=>$total_fences,'total_debts'=>$total_debts,'cash'=>$cash,'credits'=>$credits,'expenditures'=>$expenditures,'entries'=>$entries,'fences'=>$fences,'debts'=>$debts,'accounts'=>$accounts];
     }
     /**
      * Show the form for creating a new resource.

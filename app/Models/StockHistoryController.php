@@ -35,6 +35,7 @@ class StockHistoryController extends Model
         'price_used',        
         'operation_used',
         'date_operation',
+        'done_at',
         'palette',
         'profit',
         'method_used'

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DebtPayments;
-use App\Http\Requests\StoreDebtPaymentsRequest;
-use App\Http\Requests\UpdateDebtPaymentsRequest;
 use App\Models\Debts;
 use App\Models\Invoices;
+use App\Models\DebtPayments;
+use Illuminate\Support\Facades\DB;
+use App\Http\Requests\StoreDebtPaymentsRequest;
+use App\Http\Requests\UpdateDebtPaymentsRequest;
 
 class DebtPaymentsController extends Controller
 {
@@ -45,9 +46,36 @@ class DebtPaymentsController extends Controller
         if ($request['type']=="safeguard") {
             $debt=Debts::where('uuid','=',$request['debtUuid'])->first();
             $request['debt_id']= $debt['id'];
-            DebtPayments::create($request->all());
+            $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
+            ->where('debt_id','=',$debt['id'])
+            ->get()->first();
+
+            if ($payments['totalpayed']<$debt['amount']) {
+                DebtPayments::create($request->all());
+                $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
+                ->where('debt_id','=',$debt['id'])
+                ->get()->first();
+                DB::update('update debts set sold = amount - ? where id = ?',[$payments['totalpayed'],$debt['id']]);
+            }
         }else{
-            return $this->show(DebtPayments::create($request->all()));
+              $debt=Debts::where('id','=',$request['debt_id'])->first();
+             
+              $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
+              ->where('debt_id','=',$debt['id'])
+              ->get()->first();
+
+              if ($payments['totalpayed']<$debt['amount']) {
+                $newpayment=DebtPayments::create($request->all());
+                 //update the debt
+                $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
+                ->where('debt_id','=',$debt['id'])
+                ->get()->first();
+
+                DB::update('update debts set sold = amount - ? where id = ?',[$payments['totalpayed'],$debt['id']]);
+                return $this->show($newpayment);
+            }else{
+                return null;
+            }
         }
     }
 

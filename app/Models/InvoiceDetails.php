@@ -18,7 +18,9 @@ class InvoiceDetails extends Model
         'money_id',
         'total',
         'uuid',
-        // 'description',
+        'description',
+        'benefit',
+        'stock_history',
         'sync_status'
     ];
 }

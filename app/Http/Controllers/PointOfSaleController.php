@@ -6,6 +6,7 @@ use App\Models\PointOfSale;
 use App\Http\Requests\StorePointOfSaleRequest;
 use App\Http\Requests\UpdatePointOfSaleRequest;
 use App\Models\posdeposits;
+use App\Models\posusers;
 use App\Models\User;
 use App\Models\UsersPointOfSale;
 use Illuminate\Http\Request;
@@ -23,7 +24,19 @@ class PointOfSaleController extends Controller
     }
 
     public function foraspecificEse($ese){
-        return PointOfSale::where('enterprise_id','=',$ese)->get();
+       
+        $list=collect(PointOfSale::where('enterprise_id','=',$ese)->get());
+        $list->map(function ($pos){
+            $users=collect(posusers::where('pos_id','=',$pos['id'])->get());
+            $users=$users->map(function($posus){
+                $user=User::find($posus['user_id']);
+                return $user;
+            });
+            $pos['users']=$users;
+            return $pos;
+        });
+
+        return $list;
     }
 
     /**

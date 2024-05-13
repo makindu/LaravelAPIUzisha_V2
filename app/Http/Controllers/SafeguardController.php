@@ -13,6 +13,8 @@ use App\Http\Requests\StoresafeguardRequest;
 use App\Http\Requests\StoreStockHistoryControllerRequest;
 use App\Http\Requests\UpdatesafeguardRequest;
 use App\Models\CustomerController;
+use App\Models\InvoiceDetails;
+use App\Models\Invoices;
 use Illuminate\Http\Request;
 
 class SafeguardController extends Controller
@@ -79,11 +81,7 @@ class SafeguardController extends Controller
 
         //invoices treatment
         $invoices=[];
-        $invoiceCtrl = new InvoicesController();
-        foreach ($request['invoices'] as $value) {
-            $newrequest = new StoreInvoicesRequest($value);
-            array_push($invoices,$invoiceCtrl->storebySafeGuard($newrequest));
-        }
+        $invoices=$this->invoicesSafeguard(new Request(["invoices"=>$request['invoices'],"user_id"=>$request['user_id']]));
 
         //debts treatment
         $debts=[];
@@ -103,8 +101,66 @@ class SafeguardController extends Controller
             array_push($debts,$paymentCtrl->store($newrequest));
         }
 
-        return ['entries'=>$entries,'expenditures'=>$expenditures,'customers'=>$customers,'stockhistories'=>$stockhistories,'invoices'=>$request['invoices'],'payments'=>$payments,'debts'=>$debts];
+        return ['entries'=>$entries,'expenditures'=>$expenditures,'customers'=>$customers,'stockhistories'=>$stockhistories,'invoices'=>$invoices,'payments'=>$payments,'debts'=>$debts];
     }
+
+    /**
+     * new invoices safeguard
+     */
+    public function invoicesSafeguard(Request $request){
+        $User=$this->getinfosuser($request['user_id']);
+        $Ese=$this->getEse($User['id']);
+        $message="";
+
+        if($User && $Ese && $this->isactivatedEse($Ese['id']))
+        {
+            $invoiceCtrl = new InvoicesController();
+            $invoices=collect($request['invoices']);
+            $data=$invoices->transform(function ($e) use ($invoiceCtrl){
+                if(isset($e['invoice']['customer_uuid']) && $e['invoice']['customer_id']<=0){
+                    $customer=CustomerController::where('uuid','=',$e['invoice']['customer_uuid'])->get()->first();
+                    $e['invoice']['customer_id']=$customer['id'];
+                }
+    
+                    try {
+                        $e['invoice']['sync_status']="1";
+                        $invoice=Invoices::create($e['invoice']);
+                        //enregistrement des details
+                        if(isset($e['details'])){
+                        
+                            foreach ($e['details'] as $detail) {
+                                $detail['invoice_id']=$invoice['id'];
+                                $detail['total']=$detail['quantity']*$detail['price'];
+                                try {
+                                    $detail['sync_status']=true;
+                                    InvoiceDetails::create($detail);
+                                    
+                                } catch (\Throwable $th) {
+                                    //throw $th;
+                                }
+                            }
+                        }
+                    } catch (\Throwable $th) {
+                        //throw $th;
+                    }
+    
+                    return $invoiceCtrl->show($invoice);
+            });
+            $message="success";
+            return response()->json([
+                'data' =>$data,
+                'message'=>$message
+            ]); 
+        }
+        else{
+            $message="user unknown";
+            return response()->json([
+                'data' =>null,
+                'message'=>$message
+            ]);
+        } 
+    }
+   
 
     /**
      * Display the specified resource.

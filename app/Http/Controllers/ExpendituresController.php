@@ -125,8 +125,9 @@ class ExpendituresController extends Controller
         return Expenditures::leftjoin('moneys as M','expenditures.money_id','=','M.id')
         ->leftjoin('accounts as A','expenditures.account_id','=','A.id')
         ->leftjoin('users as U','expenditures.user_id','=','U.id')
+        ->leftjoin('servants as S','expenditures.beneficiary','=','S.id')
         ->where('expenditures.id','=',$expenditures->id)
-        ->get(['M.money_name','M.abreviation','A.name as account_name','U.user_name','expenditures.*'])[0];
+        ->get(['S.email as beneficiary_mail','S.name as beneficiary_name','S.phone as beneficiary_phone','M.money_name','M.abreviation','A.name as account_name','U.user_name','expenditures.*'])->first();
     }
 
     /**

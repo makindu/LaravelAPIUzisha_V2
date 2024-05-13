@@ -13,6 +13,8 @@ use App\Models\StockHistoryController;
 use App\Http\Requests\StoreServicesControllerRequest;
 use App\Http\Requests\UpdateServicesControllerRequest;
 use App\Models\InvoiceDetails;
+use Exception;
+use PhpParser\Node\Stmt\TryCatch;
 use stdClass;
 
 use function PHPUnit\Framework\isNull;
@@ -33,7 +35,7 @@ class ServicesControllerController extends Controller
      */
     public function search($enterprise_id){
          
-        $list=ServicesController::where('enterprise_id', '=', $enterprise_id)->paginate(50);
+        $list=ServicesController::where('enterprise_id', '=', $enterprise_id)->orderby('name','asc')->paginate(50);
         $list->getCollection()->transform(function ($item){
             return $this->show($item);
         });
@@ -72,6 +74,49 @@ class ServicesControllerController extends Controller
                     $servicesgotten=[];
                     # services
                     $services=DepositServices::where('deposit_id','=',$deposit['id'])->get();
+                    foreach ($services as $key => $service) {
+                        # details services
+                        $funded=$this->servicedetail($service);
+                        array_push($servicesgotten,$funded);
+                    }
+                    $depositdata=['deposit'=>$deposit,'services'=>$servicesgotten];
+                    array_push($listdata,$depositdata);
+                }
+            }
+        }
+        return $listdata;
+      
+    }    
+    
+    /**
+     * turning back articles for users
+     */
+    public function services_list_paginated($userid){ 
+        $listdata=[];
+        if($userid){
+            $user=$this->getinfosuser($userid);
+            $Ese=$this->getEse($userid);
+             //if super_admin return all
+            if($user['user_type']=='super_admin'){
+                $deposits=DepositController::where('enterprise_id','=',$Ese['id'])->get();//deposits list
+                foreach ($deposits as $key => $deposit) {
+                    $servicesgotten=[];
+                    # services
+                    $services=DepositServices::where('deposit_id','=',$deposit['id'])->paginate(50);
+                    $services->getCollection()->transform(function ($service){
+                        return $service=$this->servicedetail($service);
+                    });
+                    $depositdata=['deposit'=>$deposit,'data_services'=>$services];
+                    array_push($listdata,$depositdata);
+                }
+
+            }else{
+
+                $deposits=DepositsUsers::join('deposit_controllers as D','deposits_users.deposit_id','=','D.id')->where('D.enterprise_id','=',$Ese['id'])->where('deposits_users.user_id','=',$user['id'])->get();//deposits list
+                foreach ($deposits as $key => $deposit) {
+                    $servicesgotten=[];
+                    # services
+                    $services=DepositServices::where('deposit_id','=',$deposit['id'])->get()->paginate(50);
                     foreach ($services as $key => $service) {
                         # details services
                         $funded=$this->servicedetail($service);
@@ -491,6 +536,34 @@ class ServicesControllerController extends Controller
 
         return $data;
     }
+
+    /**
+     * Update all services
+     */
+    public function updateallservices(Request $request){
+        $ese=$this->getEse($request['user_id']);
+        if($request['criteria']==="set_tva"){
+            try {
+                $data=DB::update('update services_controllers set has_vat = ? where enterprise_id= ?',[$request['value'],$ese['id']]);
+                return response()->json([
+                    'message'=>'updated',
+                    'data'=>$data
+                ]);
+            } catch (Exception $error) {
+                return response()->json([
+                    'message'=>'error',
+                    'data'=>null
+                ]);
+            }
+           
+        }else{
+            return response()->json([
+                'message'=>'unknown',
+                'data'=>null
+            ]);
+        }
+    }
+
     /**
      * Store a newly created resource in storage.
      *
@@ -529,33 +602,33 @@ class ServicesControllerController extends Controller
                     $isheaffected=DepositsUsers::where('user_id','=',$request->user_id)->get();
                 }
                 
-                if(count($isheaffected)>0) {
+                if($request->available_qte>0){
+                    if(count($isheaffected)<=0) {
+                        $isheaffected=DepositsUsers::leftjoin('deposit_controllers as D', 'deposits_users.deposit_id','=','D.id')->where('D.enterprise_id','=',$this->getEse($request->user_id)['id'])->get('deposits_users.*');
+                    }
+                        //insert the service in the actual deposit
+                    DepositServices::create([
+                        'deposit_id'=>$isheaffected[0]['deposit_id'],
+                        'service_id'=>$new->id,
+                        'available_qte'=>$request->available_qte
+                    ]);
 
-                    if($request->available_qte>0){
-                         //insert the service in the actual deposit
-                        DepositServices::create([
-                            'deposit_id'=>$isheaffected[0]['deposit_id'],
+                    if($new->type==1){
+                        //stock history
+                        StockHistoryController::create([
                             'service_id'=>$new->id,
-                            'available_qte'=>$request->available_qte
+                            'user_id'=>$new->user_id,
+                            'invoice_id'=>0,
+                            'quantity'=>$request->available_qte,
+                            'price'=>0,
+                            'type'=>'entry',
+                            'type_approvement'=>'cash',
+                            'enterprise_id'=>$request->enterprise_id,
+                            'motif'=>'stock initial',
+                            'depot_id'=>$isheaffected[0]['deposit_id'],
                         ]);
-
-                        if($new->type==1){
-                            //stock history
-                            StockHistoryController::create([
-                                'service_id'=>$new->id,
-                                'user_id'=>$new->user_id,
-                                'invoice_id'=>0,
-                                'quantity'=>$request->available_qte,
-                                'price'=>0,
-                                'type'=>'entry',
-                                'type_approvement'=>'cash',
-                                'enterprise_id'=>$request->enterprise_id,
-                                'motif'=>'stock initial',
-                                'depot_id'=>$isheaffected[0]['deposit_id'],
-                            ]);
-                        }
-                    }  
-                }
+                    }
+                }  
             }
           //affect the service everywhere the deposit has group as type
           $groupdeposits=DepositController::where('type','=','group')->where('enterprise_id','=',$request->enterprise_id)->get();

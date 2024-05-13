@@ -42,7 +42,7 @@ class CustomerControllerController extends Controller
       */
       public function searchbywords(Request $request){
     
-        $list=CustomerController::where('enterprise_id','=',$request['enterpriseid'])->where('customerName','LIKE',"%$request->word%")->limit(10)->get();
+        $list=CustomerController::where('enterprise_id','=',$request['enterpriseid'])->where('customerName','LIKE',"%$request->word%")->orWhere('id','=',"$request->word")->orWhere('uuid','=',"$request->word")->limit(10)->get();
 
         return $list;
      }

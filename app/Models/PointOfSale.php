@@ -30,6 +30,8 @@ class PointOfSale extends Model
        'vat_rate',	
        'uuid',	
        'status',	
-       'enterprise_id'
+       'enterprise_id',
+       'beginfromamount',
+       'bonusperbuy',
     ];
 }

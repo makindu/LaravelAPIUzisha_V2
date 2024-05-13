@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\moneys;
 use App\Models\Enterprises;
+use App\Models\Invoices;
 use Illuminate\Support\Str;
 use App\Models\PricesCategories;
 use App\Models\ServicesController;
@@ -78,7 +79,17 @@ class Controller extends BaseController
 
     public function getUuId($criteria1,$criteria2){
        
-        return $criteria1.date('Ymd').'.'.date('his').'.'.$criteria2.time();
+        return $criteria1.date('Ymd').'.'.date('his').'.'.$criteria2.date('sh');
+    }
+    
+    public function getinvoiceUuid($EseId){
+       $lastinvoice=Invoices::orderBy('id','desc')->first();
+       if($lastinvoice){
+        $newinvoicenumber='F'.date('Ymd').'C'.$lastinvoice['id']+1;
+       }
+       $newinvoicenumber='F'.date('Ymd').'C'.'1';
+       
+        return $newinvoicenumber;
     }
 
     public function getdefaultmoney($EseId){

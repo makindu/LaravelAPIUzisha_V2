@@ -82,8 +82,10 @@ class OtherEntriesController extends Controller
         return OtherEntries::leftjoin('moneys as M','other_entries.money_id','=','M.id')
         ->leftjoin('accounts as A','other_entries.account_id','=','A.id')
         ->leftjoin('users as U','other_entries.user_id','=','U.id')
+        ->leftjoin('servants as S','other_entries.beneficiary','=','S.id')
         ->where('other_entries.id','=',$otherEntries->id)
-        ->get(['M.money_name','M.abreviation','A.name as account_name','U.user_name','other_entries.*'])[0];
+        ->get(['S.email as beneficiary_mail','S.name as beneficiary_name','S.phone as beneficiary_phone','M.money_name','M.abreviation','A.name as account_name','U.user_name','other_entries.*'])
+        ->first();
     }
 
     /**

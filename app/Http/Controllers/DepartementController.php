@@ -19,12 +19,12 @@ class DepartementController extends Controller
      */
     public function index()
     {
-        $list=collect(department::all());
-        $listdata=$list->map(function ($item){
-            return $this->show($item);
-        });
+        // $list=collect(department::all());
+        // $listdata=$list->map(function ($item){
+        //     return $this->show($item);
+        // });
 
-        return $listdata;
+        return department::all();
     }
 
     /**

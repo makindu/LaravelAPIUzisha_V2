@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\FenceTicketing;
 use App\Http\Requests\StoreFenceTicketingRequest;
 use App\Http\Requests\UpdateFenceTicketingRequest;
+use Illuminate\Support\Facades\DB;
+use stdClass;
 
 class FenceTicketingController extends Controller
 {
@@ -40,7 +42,20 @@ class FenceTicketingController extends Controller
      */
     public function store(StoreFenceTicketingRequest $request)
     {
-        return $this->show(fenceTicketing::create($request->all()));
+        $new = fenceTicketing::create($request->all());
+        if ($new) {
+           //getting the sum of all tickets
+           $sum=FenceTicketing::join('fences as F','fence_ticketings.fence_id','=','F.id')
+           ->select(DB::raw('SUM(amount) as total'))
+           ->where('fence_id','=',$request['fence_id'])
+           ->get('total','amount_due')->first();
+
+           DB::update('update fences set amount_paid= ? sold = ? where id = ? ',[$sum['total'],$sum['amount_due']-$sum['total'],$request->fence_id]);
+           return $this->show($new);
+
+        }else{
+            return new stdClass;
+        }
     }
 
     /**

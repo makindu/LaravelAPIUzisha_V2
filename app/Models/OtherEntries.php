@@ -19,6 +19,8 @@ class OtherEntries extends Model
         'is_validate',
         'uuid',
         'sync_status',
+        'done_at',
+        'beneficiary',
         'enterprise_id'
     ];
 }

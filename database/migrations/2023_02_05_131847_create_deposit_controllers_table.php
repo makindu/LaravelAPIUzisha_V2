@@ -19,6 +19,7 @@ class CreateDepositControllersTable extends Migration
             $table->string('name');
             $table->string('description')->nullable();
             $table->string('type');
+            $table->string('withdrawing_method')->default('fifo');
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
             $table->timestamps();

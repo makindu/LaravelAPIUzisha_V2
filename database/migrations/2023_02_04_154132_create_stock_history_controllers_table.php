@@ -25,7 +25,7 @@ class CreateStockHistoryControllersTable extends Migration
             $table->double('price')->nullable();
             $table->double('total')->nullable();
             $table->double('price_used')->nullable();
-            $table->double('quantity_used')->nullable();
+            $table->double('quantity_used')->default(0);
             $table->double('profit')->nullable();
             $table->integer('operation_used')->nullable();
             $table->date('expiration_date')->nullable();

@@ -7,6 +7,7 @@ use App\Http\Requests\StoreexpendituresLimitsRequest;
 use App\Http\Requests\UpdateexpendituresLimitsRequest;
 use App\Models\UsersExpendituresLimits;
 use Illuminate\Http\Request;
+use stdClass;
 
 class ExpendituresLimitsController extends Controller
 {
@@ -72,6 +73,24 @@ class ExpendituresLimitsController extends Controller
         }
        
         return $users;
+    }
+
+    /**
+     * get for one user
+     */
+    public function getforaspecificuser($user){
+        $usersent = $this->getinfosuser($user);
+        $data = new stdClass;
+        $msg="unknown";
+        if ($usersent) {
+            $data=UsersExpendituresLimits::join('expenditures_limits as EL','users_expenditures_limits.limit_id','=','EL.id')->where('users_expenditures_limits.user_id','=',$user)->get()->first();
+            $msg="find";
+        }
+        
+       return response()->json([
+            'data'=>$data,
+            'msg'=>$msg
+       ]); 
     }
     /**
      * Show the form for editing the specified resource.

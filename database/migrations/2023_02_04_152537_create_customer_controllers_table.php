@@ -31,6 +31,9 @@ class CreateCustomerControllersTable extends Migration
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
             $table->dateTimeTz('done_at')->nullable();
+            $table->double('totalpoints')->nullable();
+            $table->double('totalbonus')->nullable();
+            $table->double('totalcautions')->nullable(); 
             $table->timestamps();
         });
     }

@@ -18,7 +18,7 @@ class Expenditures extends Model
         'is_validate',
         'uuid',
         'done_at',
-        'beneficiary_id',
+        'beneficiary',
         'sync_status',
         'enterprise_id'
     ];

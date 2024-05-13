@@ -21,7 +21,7 @@ class DebtsController extends Controller
      */
     public function index($enterprise_id)
     {
-        $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')->where('I.type_facture','=','credit')->where('I.enterprise_id','=',$enterprise_id)->where('debts.status','=','0')->get(['debts.*']));
+        $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')->where('I.type_facture','=','credit')->where('I.enterprise_id','=',$enterprise_id)->where('debts.status','=','0')->where('debts.sold','>',0)->get(['debts.*']));
         $listdata=$list->map(function ($item,$key){
             return $this->show($item);
         });

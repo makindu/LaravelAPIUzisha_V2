@@ -27,7 +27,8 @@ class CreateOtherEntriesTable extends Migration
             $table->boolean('sync_status')->nullable();
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
-            $table->dateTimeTz('done_at')->nullable();
+            $table->date('done_at')->nullable();
+            $table->integer('beneficiary')->nullable();
             $table->timestamps();
         });
     }

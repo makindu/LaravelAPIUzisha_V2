@@ -22,6 +22,9 @@ class CustomerController extends Model
         'type',
         'sex',
         'enterprise_id',
-        'uuid'  
+        'uuid',
+        'totalpoints',
+        'totalbonus',
+        'totalcautions'
     ];
 }

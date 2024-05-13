@@ -74,6 +74,8 @@ use App\Http\Controllers\DecisionChiefdepartmentsController;
 use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
+use App\Http\Controllers\EnterprisesinvoicesController;
+use App\Http\Controllers\PosusersController;
 
 /*
 |--------------------------------------------------------------------------
@@ -102,6 +104,7 @@ Route::post('/users/updatepassword',[UsersController::class,'updatePassword']);
 Route::get('/getuser',[UsersController::class,'getone']);
 Route::post('/users/dashboard/{id}',[UsersController::class,'dashboard']);
 Route::post('/users/makeassuperadmin',[UsersController::class,'makeassuperadmin']);
+Route::post('/users/resetpassword',[UsersController::class,'ifexistsemailadress']);
 
 
 //connection or login
@@ -217,6 +220,11 @@ Route::apiResource('owners',OwnersController::class);
 Route::apiResource('enterprises',EnterprisesController::class);
 Route::put('/enterprises/update/{id}',[EnterprisesController::class,'update2']);
 Route::get('/enterprises/getinfos/{id}',[EnterprisesController::class,'getone']);
+Route::post('/enterprises/resetdata',[EnterprisesController::class,'resetalldata']);
+
+//Enterprises invoices abonments
+Route::apiResource('enterprisesinvoices',EnterprisesinvoicesController::class);
+Route::get('/enterprises/myinvoices/{id}',[EnterprisesinvoicesController::class,'index']);
 
 //Point of sale (Points des ventes)
 Route::apiResource('pointofsales',PointOfSaleController::class);
@@ -229,6 +237,11 @@ Route::get('/pointofsales/agents/{posid}',[PointOfSaleController::class,'getagen
 Route::delete('/pointofsales/deposits/delete/{affectation_id}',[PointOfSaleController::class,'deleteposit']);
 Route::post('/pointofsales/user/delete',[PointOfSaleController::class,'deleteuser']);
 Route::apiResource('userspointofsale',UsersPointOfSaleController::class);
+
+//point of sales users
+Route::get('pointofsale/users/{id}',[PosusersController::class,'index']);
+Route::post('pointofsale/users',[PosusersController::class,'store']);
+Route::post('pointofsale/users/deleting',[PosusersController::class,'destroy']);
 //Ticket offices (Guichets)
 Route::apiResource('ticketoffices',TicketOfficeController::class);
 Route::apiResource('usersticketoffice',UsersTicketOfficeController::class);
@@ -246,6 +259,7 @@ Route::post('/deposit/users',[DepositControllerController::class,'depositForUser
 Route::get('/deposit/articlesdepositpaginated/{depositid}',[ServicesControllerController::class,'articlesdepositpaginated']);
 Route::get('/deposit/all-articles-paginated/{userid}',[ServicesControllerController::class,'depositsandarticlespaginated']);
 Route::post('/deposit/reset',[DepositControllerController::class,'reset']);
+Route::post('/deposit/rollbackall',[DepositControllerController::class,'rollbackdepositquantities']);
 
 //Deposits users
 Route::apiResource('depositsusers',DepositsUsersController::class);
@@ -263,6 +277,7 @@ Route::post('/stockhistory/byuser/newreportstockhistory',[StockHistoryController
 Route::post('/stockhistory/expiration',[StockHistoryControllerController::class,'reportexpiration']);
 Route::post('/stockhistory/fordeposit',[StockHistoryControllerController::class,'fordeposit']);
 Route::post('/stockhistory/multipleservices',[StockHistoryControllerController::class,'multipleservices']);
+Route::post('/stockhistory/multiplestore',[StockHistoryControllerController::class,'multiplestore']);
 Route::post('/stockhistory/report/bydeposits',[StockHistoryControllerController::class,'reportbydeposits']);
 
 //Transfert stock
@@ -290,6 +305,7 @@ Route::patch('/categoriesServices/update/{id}',[CategoriesServicesControllerCont
 Route::apiResource('services',ServicesControllerController::class);
 Route::get('/services/enterprise/{enterprise_id}',[ServicesControllerController::class,'index']);
 Route::post('/services/list',[ServicesControllerController::class,'services_list']);
+Route::get('/services/list/{user_id}',[ServicesControllerController::class,'services_list_paginated']);
 Route::put('/services/update/{id}',[ServicesControllerController::class,'update2']);
 Route::patch('/services/update/{id}',[ServicesControllerController::class,'update2']);
 Route::delete('/services/delete/{id}',[ServicesControllerController::class,'destroy2']);
@@ -376,6 +392,8 @@ Route::get('/invoices/customer/{id}',[InvoicesController::class,'foracustomer'])
 Route::post('/invoices/filteredcustomer',[InvoicesController::class,'forACustomerFiltered']);
 Route::post('/invoices/reportbyuser',[InvoicesController::class,'reportUserSelling']);
 Route::post('/invoices/newreportbyuser',[InvoicesController::class,'reportUserSelling2']);
+Route::post('/invoices/reportUserSellingwithoutdetails',[InvoicesController::class,'reportUserSellingwithoutdetails']);
+Route::post('/invoices/reportUserSelling2filteredbytva',[InvoicesController::class,'reportUserSelling2filteredbytva']);
 Route::post('/invoices/reportbyuser/grouped',[InvoicesController::class,'reportUserSellingGroupByArticle']);
 Route::get('/invoices/comptecourant/{customerid}',[InvoicesController::class,'comptecourant']);
 Route::post('/invoices/users',[InvoicesController::class,'foraspecificuser']);
@@ -422,6 +440,7 @@ Route::post('/otherentries/dailyreport',[OtherEntriesController::class,'doneby']
  * Safeguards
  */
 Route::apiResource('safeguards',SafeguardController::class);
+Route::post('/safeguards/invoices',[SafeguardController::class,'invoicesSafeguard']);
 
 /**
  * Roles
@@ -441,6 +460,7 @@ Route::get('/limitsexpenditures/enterprise/{id}',[ExpendituresLimitsController::
 Route::put('/limitsexpenditures/update/{id}',[ExpendituresLimitsController::class,'update2']);
 Route::delete('/limitsexpenditures/delete/{id}',[ExpendituresLimitsController::class,'destroy2']);
 Route::get('/limitsexpenditures/users/{id}',[ExpendituresLimitsController::class,'getUsersForOne']);
+Route::get('/limitsexpenditures/user/{id}',[ExpendituresLimitsController::class,'getforaspecificuser']);
 
 /**
  * Expenditures Limits with Users
@@ -575,6 +595,7 @@ Route::post('/pressing/otherentries/doneby',[OtherEntriesController::class,'done
 Route::get('/services/search/enterprise/{enterprise_id}',[ServicesControllerController::class,'search']);
 Route::post('/services/searchbyword/enterprise',[ServicesControllerController::class,'searchinarticlesbyname']);
 Route::post('/services/searchbycodebar/enterprise',[ServicesControllerController::class,'searchbycodebar']);
+Route::post('/services/updateAll',[ServicesControllerController::class,'updateallservices']);
 
 //DEPOSIT AND SERVICES
 Route::post('/deposit/services/searchbywords',[ServicesControllerController::class,'searchinarticlesdeposit']);
