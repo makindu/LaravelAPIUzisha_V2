@@ -21,6 +21,7 @@ class InvoiceDetails extends Model
         'description',
         'benefit',
         'stock_history',
-        'sync_status'
+        'sync_status',
+        'date_operation'
     ];
 }

@@ -10,12 +10,10 @@ use Illuminate\Support\Facades\DB;
 use App\Models\StockHistoryController;
 use App\Http\Requests\StoreInvoicesRequest;
 use App\Http\Requests\UpdateInvoicesRequest;
-use App\Models\Accounts;
 use App\Models\CustomerController;
 use App\Models\customerspointshistory;
 use App\Models\DepositController;
 use App\Models\DepositServices;
-use App\Models\DepositsUsers;
 use App\Models\DetailsInvoicesStatus;
 use App\Models\Expenditures;
 use App\Models\invoicesdetailscolors;
@@ -30,6 +28,7 @@ use App\Models\OtherEntries;
 use App\Models\pressingStockStory;
 use App\Models\ServicesController;
 use App\Models\User;
+use App\Models\licences;
 use Illuminate\Http\Request;
 use stdClass;
 
@@ -131,6 +130,45 @@ class InvoicesController extends Controller
             "totalsells"=>$services->sum('total_sell'),
             "money"=>$this->defaultmoney($this->getEse($request['user_id'])['id'])
         ]);
+     }
+     
+     /**
+     * Report by articles based on date operation
+     */
+     public function reportbyarticlesbasedondateoperation(Request $request){
+        $services=[];
+        if(isset($request->from)==false && empty($request->from) && isset($request->to)==false && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if (isset($request->services) && count($request->services)>0) {
+            $services=collect(ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
+            ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
+            ->whereIn('services_controllers.id',$request['services'])
+            ->get(['services_controllers.*','C.name as category_name','U.symbol as uom_symbol']));
+
+                $services->transform(function ($service) use ($request){
+                    $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                                ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
+                                ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->where('invoice_details.service_id','=',$service['id'])
+                                ->where('I.type_facture','<>','proforma')
+                                ->get()->first();
+                    $service['total_quantity']=$mouvements['total_quantity'];
+                    $service['total_sell']=$mouvements['total_sell'];
+                    return $service;
+                });
+        }
+
+        return response()->json([
+            "data"=>$services,
+            "from"=>$request['from'],
+            "to"=>$request['to'],
+            "totalquantities"=>$services->sum('total_quantity'),
+            "totalsells"=>$services->sum('total_sell'),
+            "money"=>$this->defaultmoney($this->getEse($request['user_id'])['id'])
+        ]);
      }    
      
      /**
@@ -189,6 +227,91 @@ class InvoicesController extends Controller
                         $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                                             ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
                                             ->whereBetween('invoice_details.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                            ->where('invoice_details.service_id','=',$service['id'])
+                                            ->where('I.type_facture','<>','proforma')
+                                            ->where('invoice_details.deposit_id','=',$deposit['id'])
+                                            ->get()->first();
+
+                        $service['total_quantity']=$mouvements['total_quantity'];
+                        $service['total_sell']=$mouvements['total_sell'];
+
+                        return $service;
+                    });
+                    
+                    $deposit['services']=$services;
+                    $deposit['total_quantities']=$services->sum('total_quantity');
+                    $deposit['total_sells']=$services->sum('total_sell');
+                }
+                return $deposit;
+            });
+        }
+       
+        return response()->json([
+            "data"=>$deposits,
+            "from"=>$request['from'],
+            "to"=>$request['to'],
+            "totalquantities"=>$deposits->sum('total_quantities'),
+            "totalsells"=>$deposits->sum('total_sells'),
+            "money"=>$this->defaultmoney($this->getEse($request['user_id'])['id'])
+        ]);
+     }     
+     
+     /**
+     * Report sell by deposits and  articles
+     */
+     public function reportbydepositsarticlesbasedondateoperation(Request $request){
+        $deposits=[];
+        $user=$this->getinfosuser($request['user_id']);
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if (isset($request['deposits']) && !empty($request['deposits'])) {
+            $deposits=collect(DepositController::whereIn('id',$request['deposits'])->get());
+            $deposits->transform(function ($deposit) use ($request){
+                if (isset($request['services']) && !empty($request['services'])) {
+                    //if there are services sent
+                    $services=collect(ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
+                                                        ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
+                                                        ->whereIn('services_controllers.id',$request['services'])
+                                                        ->get(['services_controllers.*','C.name as category_name','U.symbol as uom_symbol']));
+                    $services->transform(function ($service) use ($request,$deposit){
+                        $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                        ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
+                        ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                        ->where('invoice_details.service_id','=',$service['id'])
+                        ->where('I.type_facture','<>','proforma')
+                        ->where('invoice_details.deposit_id','=',$deposit['id'])
+                        ->get()->first();
+
+                        $service['total_quantity']=$mouvements['total_quantity'];
+                        $service['total_sell']=$mouvements['total_sell'];
+
+                        return $service;
+
+                    });
+                    $deposit['services']=$services;
+                    $deposit['total_quantities']=$services->sum('total_quantity');
+                    $deposit['total_sells']=$services->sum('total_sell');
+                }else{
+                    $services=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                    ->select('invoice_details.service_id')
+                    ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->where('I.type_facture','<>','proforma')
+                    ->where('invoice_details.deposit_id','=',$deposit['id'])
+                    ->groupByRaw('invoice_details.service_id')
+                    ->get());
+
+                    $services->transform(function($service) use ($request,$deposit){
+                        $service=ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
+                                                        ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
+                                                        ->where('services_controllers.id','=',$service['service_id'])
+                                                        ->get(['services_controllers.*','C.name as category_name','U.symbol as uom_symbol'])->first();
+
+                        $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                                            ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
+                                            ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                                             ->where('invoice_details.service_id','=',$service['id'])
                                             ->where('I.type_facture','<>','proforma')
                                             ->where('invoice_details.deposit_id','=',$deposit['id'])
@@ -330,6 +453,64 @@ class InvoicesController extends Controller
             ->where('expenditures.user_id','=',$request['user_id'])
             ->where('expenditures.enterprise_id','=',$enterprise['id'])
             ->whereBetween('expenditures.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->get(['A.name','expenditures.*']);
+ 
+             $list_data['entries']=$entries;
+             $list_data['sum_entries']=$entries->sum('amount');
+             $list_data['withdraw']=$withdraw;
+             $list_data['sum_withdraw']=$withdraw->sum('amount');
+             $list_data['total']=$withdraw->sum('amount')+$entries->sum('amount');
+        } 
+
+        return response()->json([
+            'data'=>$list_data,
+            'from'=>$request['from'],
+            'to'=>$request['to'],
+            'money'=>$this->defaultmoney($enterprise['id'])]);
+    }
+    
+    /**
+     * report cash book by user based on date operation
+     */
+    public function cashbookbasedondateoperations(Request $request){
+        $list_data=[];
+        $user=$this->getinfosuser($request['user_id']);
+        $enterprise=$this->getEse($user['id']);
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if ($user['user_type']=='super_admin') {
+            
+           $entries=OtherEntries::leftjoin('accounts as A','other_entries.account_id','=','A.id')
+           ->where('other_entries.enterprise_id','=',$enterprise['id'])
+           ->whereBetween('other_entries.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+           ->get(['A.name','other_entries.*','other_entries.done_at as created_at']);
+
+           $withdraw=Expenditures::leftjoin('accounts as A','expenditures.account_id','=','A.id')
+           ->where('expenditures.enterprise_id','=',$enterprise['id'])
+           ->whereBetween('expenditures.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+           ->get(['A.name','expenditures.*','expenditures.done_at as created_at']);
+
+            $list_data['entries']=$entries;
+            $list_data['sum_entries']=$entries->sum('amount');
+            $list_data['withdraw']=$withdraw;
+            $list_data['sum_withdraw']=$withdraw->sum('amount');
+            $list_data['total']=$withdraw->sum('amount')+$entries->sum('amount');
+
+        }else{
+
+            $entries=OtherEntries::leftjoin('accounts as A','other_entries.account_id','=','A.id')
+            ->where('other_entries.user_id','=',$request['user_id'])
+            ->where('other_entries.enterprise_id','=',$enterprise['id'])
+            ->whereBetween('other_entries.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->get(['A.name','other_entries.*']);
+ 
+            $withdraw=Expenditures::leftjoin('accounts as A','expenditures.account_id','=','A.id')
+            ->where('expenditures.user_id','=',$request['user_id'])
+            ->where('expenditures.enterprise_id','=',$enterprise['id'])
+            ->whereBetween('expenditures.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
             ->get(['A.name','expenditures.*']);
  
              $list_data['entries']=$entries;
@@ -548,6 +729,142 @@ class InvoicesController extends Controller
                     $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                     ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
                     ->whereBetween('invoice_details.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->where('invoice_details.service_id','=',$service['id'])
+                    ->where('I.edited_by_id','=',$request['user_id'])
+                    ->where('I.type_facture','<>','proforma')
+                    ->get()->first();
+
+                    $service['total_quantity']=$mouvements['total_quantity'];
+                    $service['total_sell']=$mouvements['total_sell'];
+                    return $service;
+                });
+
+                $user['details']=$services;
+
+                return $user;
+            });
+        } 
+
+        return response()->json([
+            'data'=>$users,
+            'from'=>$request['from'],
+            'to'=>$request['to'],
+            'subtot_ht'=>$users->sum('total_ht'),
+            'subtot_ttc'=>$users->sum('total_ttc'),
+            'subtot_tva'=>$users->sum('totalVatAmount'),
+            'subtot_cash'=>$users->sum('cash'),
+            'subtot_credits'=>$users->sum('credits'),
+            'subtot_sold'=>$users->sum('sold'),
+            'money'=>$this->defaultmoney($enterprise['id'])]);
+    } 
+    
+    /**
+     * report by user for selling edited
+     */
+    public function reportUserSelling2basedondatesoperations(Request $request){
+        $users=[];
+        $actualUser=$this->getinfosuser($request['user_id']);
+        $enterprise=$this->getEse($actualUser['id']);
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if ($actualUser['user_type']=='super_admin') {
+
+            $users=collect(Invoices::where('enterprise_id','=',$enterprise['id'])
+            ->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->select('edited_by_id')
+            ->groupByRaw('edited_by_id')
+            ->get());
+
+            $users->transform(function ($agent) use ($request){
+                $user=User::where('id','=',$agent['edited_by_id'])->select(['id','user_name','user_mail','user_phone','user_type','status','note','avatar','full_name'])->get()->first();
+
+                $cash=Invoices::select(DB::raw('sum(total) as totalCash'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','cash')->get('totalCash')->first();
+                $credits=Invoices::select(DB::raw('sum(total) as totalCredits'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','credit')->get('totalCredits')->first();
+                $vat=Invoices::select(DB::raw('sum(vat_amount) as totalVatAmount'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('totalVatAmount')->first();
+                $ttc=Invoices::select(DB::raw('sum(netToPay) as total_ttc'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('total_ttc')->first();
+                $user['cash']=$cash['totalCash'];
+                $user['credits']=$credits['totalCredits'];
+                $user['total_ht']=$credits['totalCredits']+$cash['totalCash'];
+                $user['total_ttc']=$ttc['total_ttc'];
+                $user['totalVatAmount']=$vat['totalVatAmount'];
+                $user['sold']=$cash['totalCash']+$vat['totalVatAmount'];
+
+                $listdetails=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                ->select('invoice_details.service_id')
+                ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->where('I.type_facture','<>','proforma')
+                ->where('I.edited_by_id','=',$user['id'])
+                ->groupByRaw('invoice_details.service_id')
+                ->get());
+                $request['user_id']=$user['id'];
+                $services=$listdetails->transform(function ($service) use ($request,$user){
+                    $service=ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
+                    ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
+                    ->where('services_controllers.id','=',$service['service_id'])
+                    ->get(['services_controllers.*','C.name as category_name','U.symbol as uom_symbol'])->first();
+
+                    $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                    ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
+                    ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->where('invoice_details.service_id','=',$service['id'])
+                    ->where('I.edited_by_id','=',$user['id'])
+                    ->where('I.type_facture','<>','proforma')
+                    ->get()->first();
+
+                    $service['total_quantity']=$mouvements['total_quantity'];
+                    $service['total_sell']=$mouvements['total_sell'];
+                    return $service;
+                });
+
+                $user['details']=$services;
+
+                return $user;
+            });
+        }else{
+            //if not super admin
+            $usersSent=[];
+            array_push($usersSent,$request['user_id']);
+            $users=collect(Invoices::where('enterprise_id','=',$enterprise['id'])
+            ->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->where('edited_by_id','=',$request['user_id'])
+            ->select('edited_by_id')
+            ->groupByRaw('edited_by_id')
+            ->get());
+
+            $users->transform(function ($agent) use ($request){
+
+                $user=User::where('id','=',$agent['edited_by_id'])->select(['id','user_name','user_mail','user_phone','user_type','status','note','avatar','full_name'])->get()->first();
+                $request['user_id']=$user['id'];
+                $cash=Invoices::select(DB::raw('sum(total) as totalCash'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','cash')->get('totalCash')->first();
+                $credits=Invoices::select(DB::raw('sum(total) as totalCredits'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','credit')->get('totalCredits')->first();
+                $vat=Invoices::select(DB::raw('sum(vat_amount) as totalVatAmount'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('totalVatAmount')->first();
+                $ttc=Invoices::select(DB::raw('sum(netToPay) as total_ttc'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('total_ttc')->first();
+                $user['cash']=$cash['totalCash'];
+                $user['credits']=$credits['totalCredits'];
+                $user['total_ht']=$credits['totalCredits']+$cash['totalCash'];
+                $user['total_ttc']=$ttc['total_ttc'];
+                $user['totalVatAmount']=$vat['totalVatAmount'];
+                $user['sold']=$cash['totalCash']+$vat['totalVatAmount'];
+
+                $services=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                ->select('invoice_details.service_id')
+                ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->where('I.type_facture','<>','proforma')
+                ->where('I.edited_by_id','=',$user['id'])
+                ->groupByRaw('invoice_details.service_id')
+                ->get());
+                $services->transform(function ($service) use ($request){
+                    $service=ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
+                    ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
+                    ->where('services_controllers.id','=',$service['service_id'])
+                    ->get(['services_controllers.*','C.name as category_name','U.symbol as uom_symbol'])->first();
+
+                    $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                    ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
+                    ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                     ->where('invoice_details.service_id','=',$service['id'])
                     ->where('I.edited_by_id','=',$request['user_id'])
                     ->where('I.type_facture','<>','proforma')
@@ -794,6 +1111,89 @@ class InvoicesController extends Controller
             'money'=>$this->defaultmoney($enterprise['id'])]);
     }
     
+    /**
+     * report by user for selling edited
+     */
+    public function reportUserSellingwithoutdetailsbasedoperationdates(Request $request){
+        $users=[];
+        $actualUser=$this->getinfosuser($request['user_id']);
+        $enterprise=$this->getEse($actualUser['id']);
+        $fidelityreport=null;
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if ($actualUser['user_type']=='super_admin') {
+                //fidelity report
+            $userctrl = new UsersController();
+            $fidelityreport=$userctrl->superadminfidelityreport($request,$actualUser['id']);
+
+            $users=collect(Invoices::where('enterprise_id','=',$enterprise['id'])
+            ->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->select('edited_by_id')
+            ->groupByRaw('edited_by_id')
+            ->get());
+
+            $users->transform(function ($agent) use ($request){
+                $user=User::where('id','=',$agent['edited_by_id'])->select(['id','user_name','user_mail','user_phone','user_type','status','note','avatar','full_name'])->get()->first();
+
+                $cash=Invoices::select(DB::raw('sum(total) as totalCash'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','cash')->get('totalCash')->first();
+                $credits=Invoices::select(DB::raw('sum(total) as totalCredits'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','credit')->get('totalCredits')->first();
+                $vat=Invoices::select(DB::raw('sum(vat_amount) as totalVatAmount'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('totalVatAmount')->first();
+                $ttc=Invoices::select(DB::raw('sum(netToPay) as total_ttc'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('total_ttc')->first();
+                $user['cash']=$cash['totalCash'];
+                $user['credits']=$credits['totalCredits'];
+                $user['total_ht']=$credits['totalCredits']+$cash['totalCash'];
+                $user['total_ttc']=$ttc['total_ttc'];
+                $user['totalVatAmount']=$vat['totalVatAmount'];
+                $user['sold']=$cash['totalCash']+$vat['totalVatAmount'];
+                return $user;
+            });
+        }else{
+            //if not super admin
+            $usersSent=[];
+            array_push($usersSent,$request['user_id']);
+            $users=collect(Invoices::where('enterprise_id','=',$enterprise['id'])
+            ->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->whereIn('edited_by_id',[$usersSent])
+            ->select('edited_by_id')
+            ->groupByRaw('edited_by_id')
+            ->get());
+
+            $users->transform(function ($agent) use ($request){
+
+                $user=User::where('id','=',$agent['edited_by_id'])->select(['id','user_name','user_mail','user_phone','user_type','status','note','avatar','full_name'])->get()->first();
+
+                $cash=Invoices::select(DB::raw('sum(total) as totalCash'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','cash')->get('totalCash')->first();
+                $credits=Invoices::select(DB::raw('sum(total) as totalCredits'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','=','credit')->get('totalCredits')->first();
+                $vat=Invoices::select(DB::raw('sum(vat_amount) as totalVatAmount'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('totalVatAmount')->first();
+                $ttc=Invoices::select(DB::raw('sum(netToPay) as total_ttc'))->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('edited_by_id','=',$user['id'])->where('type_facture','<>','proforma')->get('total_ttc')->first();
+                $user['cash']=$cash['totalCash'];
+                $user['credits']=$credits['totalCredits'];
+                $user['total_ht']=$credits['totalCredits']+$cash['totalCash'];
+                $user['total_ttc']=$ttc['total_ttc'];
+                $user['totalVatAmount']=$vat['totalVatAmount'];
+                $user['sold']=$cash['totalCash']+$vat['totalVatAmount'];
+
+                return $user;
+            });
+        } 
+
+        return response()->json([
+            'data'=>$users,
+            'from'=>$request['from'],
+            'to'=>$request['to'],
+            'subtot_ht'=>$users->sum('total_ht'),
+            'subtot_ttc'=>$users->sum('total_ttc'),
+            'subtot_tva'=>$users->sum('totalVatAmount'),
+            'subtot_cash'=>$users->sum('cash'),
+            'subtot_credits'=>$users->sum('credits'),
+            'subtot_sold'=>$users->sum('sold'),
+            'fidelityreport'=>$fidelityreport,
+            'money'=>$this->defaultmoney($enterprise['id'])]);
+    }
+
      /**
      * report by user for selling cash and credit
      */
@@ -959,6 +1359,16 @@ class InvoicesController extends Controller
         //
     }
 
+    public function storemobile(Request $request){
+        // return $request;
+        $invoice=Invoices::create($request->all());
+        return $invoice;
+        // return response()->json([
+        //     'data'=>$request,
+        //     'message'=>"success",
+        //     'status'=>200
+        // ]) ;
+    }
     /**
      * Store a newly created resource in storage.
      *
@@ -993,6 +1403,7 @@ class InvoicesController extends Controller
     }
 
     public function saveInvoice(StoreInvoicesRequest $request){
+        
             $request['uuid']=$this->getinvoiceUuid($this->getEse($request['edited_by_id'])['id']); 
             $invoice=Invoices::create($request->all());
             $ese=$this->getEse($request['edited_by_id']);
@@ -1062,6 +1473,7 @@ class InvoicesController extends Controller
                                  'type'=>'point',
                                  'value'=>$ese['fidelitypointvalue']*$point,
                                  'used'=>false,
+                                 'done_at'=>$invoice['date_operation']
                              ]);
                         }
                 }
@@ -1084,7 +1496,8 @@ class InvoicesController extends Controller
                         'amount'=>$invoice['netToPay']-$invoice['amount_paid'],
                         'sold'=>$invoice['netToPay']-$invoice['amount_paid'],
                         'uuid'=>$this->getUuId('D','C'),
-                        'sync_status'=>'1'
+                        'sync_status'=>'1',
+                        'done_at'=>$invoice['date_operation']
                     ]);
 
                     //if there is amount paid creating a payment
@@ -1093,7 +1506,8 @@ class InvoicesController extends Controller
                             'done_by_id'=>$invoice['edited_by_id'],
                             'debt_id'=>$debt['id'],
                             'amount_payed'=>$invoice['amount_paid'],
-                            'uuid'=>$this->getUuId('P','C')
+                            'uuid'=>$this->getUuId('P','C'),
+                            'done_at'=>$invoice['date_operation']
                         ]);
                     } 
                 }
@@ -1104,6 +1518,174 @@ class InvoicesController extends Controller
                 'message'=>'can make invoice'
             ]);
     }
+
+    /**
+     * store garage data
+     */
+    public function storegarage(Request $request){
+
+        $User=$this->getinfosuser($request['edited_by_id']);
+        $Ese=$this->getEse($request['edited_by_id']);
+        if($User && $Ese){
+            if($this->isactivatedEse($Ese['id'])){
+                return $this->saveInvoiceGarage($request);
+            }else{
+                //count numbers of invoices done
+                $sumInvoices =Invoices::select(DB::raw('count(*) as number'))->where('enterprise_id','=',$Ese['id'])->get('number')->first();
+                if ($sumInvoices['number']>=100) {
+                    return response()->json([
+                        'data' =>'',
+                        'message'=>'invoices number exceeded'
+                    ]);
+                }else{
+                    return $this->saveInvoiceGarage($request);
+                }
+            }
+        }else{
+            return response()->json([
+                'data' =>'',
+                'message'=>'user unknown'
+            ]); 
+        }
+    }
+
+    /**
+     * saving garage invoice
+     */
+
+     public function saveInvoiceGarage($request){
+        $request['uuid']=$this->getinvoiceUuid($this->getEse($request['edited_by_id'])['id']); 
+        $invoice=Invoices::create($request->all());
+        $ese=$this->getEse($request['edited_by_id']);
+        $fidelitymode=$ese['fidelitydefaultmode'];
+       
+        //enregistrement des details
+        if(isset($request->details)){
+        
+            foreach ($request->details as $detail) {
+                $detail['invoice_id']=$invoice['id'];
+                $detail['total']=$detail['quantity']*$detail['price'];
+                $detail['point']=ServicesController::find($detail['service_id'])['point'];
+                InvoiceDetails::create($detail);
+                if((isset($request->type_facture) && $request->type_facture=='cash') || (isset($request->type_facture) && $request->type_facture=='credit') )
+                {
+                    if(isset($detail['type_service']) && $detail['type_service']=='1'){
+                        $stockbefore=DepositServices::where('deposit_id','=',$detail['deposit_id'])->where('service_id','=',$detail['service_id'])->get()[0];
+                        DB::update('update deposit_services set available_qte = available_qte - ? where service_id = ? and deposit_id = ?',[$detail['quantity'],$detail['service_id'],$detail['deposit_id']]);
+                        StockHistoryController::create([
+                            'service_id'=>$detail['service_id'],
+                            'user_id'=>$invoice['edited_by_id'],
+                            'invoice_id'=>$invoice['id'],
+                            'quantity'=>$detail['quantity'],
+                            'price'=>$detail['price'],
+                            'type'=>'withdraw',
+                            'type_approvement'=>$invoice['type_facture'],
+                            'enterprise_id'=>$request['enterprise_id'],
+                            'motif'=>'vente',
+                            'done_at'=>$invoice['date_operation'],
+                            'date_operation'=>$invoice['date_operation'],
+                            'uuid'=>$this->getUuId('C','ST'),
+                            'depot_id'=>$detail['deposit_id'],
+                            'quantity_before'=>$stockbefore->available_qte,
+                        ]);
+                    }
+                }
+            }
+        }
+
+       
+       
+        if($invoice['type_facture']=='point' &&  $invoice['customer_id']>0){
+            $count=$invoice['netToPay'];
+            $constant=5;
+            $point=$count/$constant;
+
+            $customer=CustomerController::find($invoice['customer_id']);
+
+            $customerupdated=DB::update('update customer_controllers set totalpoints = totalpoints - ? where id = ?',[$point,$customer['id']]);
+        }
+
+        if($fidelitymode=='point' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
+            $count=$invoice['netToPay'];
+            $constant=5;
+            if($count>=$constant){
+                
+                    $customer=CustomerController::find($invoice['customer_id']);
+                    $point=($count/$constant);
+                    // number_format();
+                    $customerupdated=DB::update('update customer_controllers set totalpoints = totalpoints + ? where id = ?',[$point,$customer['id']]);
+                    if($customerupdated){
+                         //creating fidelity history ligne
+                         customerspointshistory::create([
+                             'customer_id'=>$customer['id'],
+                             'invoice_id'=>$invoice['id'],
+                             'point'=>$point,
+                             'type'=>'point',
+                             'value'=>$ese['fidelitypointvalue']*$point,
+                             'used'=>false,
+                         ]);
+                    }
+            }
+        }
+
+        //if invoice-type=='caution'
+        if($invoice['type_facture']=='caution' && $invoice['customer_id']>0){
+            //update the customer cautionline
+            DB::update('update customer_controllers set totalcautions = totalcautions - ? where id = ?',[$invoice['netToPay'],$invoice['customer_id']]);
+        }
+
+        //check if debt
+        if($invoice['type_facture']=='credit'){
+            if($invoice['customer_id']>0){
+                $debt=Debts::create([
+                    'created_by_id'=>$invoice['edited_by_id'],
+                    'customer_id'=>$invoice['customer_id'],
+                    'invoice_id'=>$invoice['id'],
+                    'status'=>'0',
+                    'amount'=>$invoice['netToPay']-$invoice['amount_paid'],
+                    'sold'=>$invoice['netToPay']-$invoice['amount_paid'],
+                    'uuid'=>$this->getUuId('D','C'),
+                    'sync_status'=>'1'
+                ]);
+
+                //if there is amount paid creating a payment
+                if ($invoice['amount_paid']>0) {
+                    DebtPayments::create([
+                        'done_by_id'=>$invoice['edited_by_id'],
+                        'debt_id'=>$debt['id'],
+                        'amount_payed'=>$invoice['amount_paid'],
+                        'uuid'=>$this->getUuId('P','C')
+                    ]);
+                } 
+            }
+        }
+
+        //If vehicule sent
+        if(isset($request['vehicule_id']) && isset($request['customer_id'])){
+            //creating licence
+            $request['from']=$request['date_operation'];
+            $datefromtimestamp=strtotime($request['from']);
+            $datefin=date('Y-m-d',strtotime('+'.'6'.'month',$datefromtimestamp));
+            $request['to']=$datefin;
+            
+            licences::create([
+                'vehicule_id'=>$request['vehicule_id'],			
+                'updated_by'=>$invoice['edited_by_id'],
+                'uuid'=>$this->getuuid('C','LCV'),
+                'status'=>"available",
+                'to'=>$request['to'],
+                'from'=>$request['from'],
+                'created_by_id'=>$invoice['edited_by_id'],
+                'enterprise_id'=>$invoice['enterprise_id']
+            ]);
+        }
+
+        return response()->json([
+            'data' =>$this->show($invoice),
+            'message'=>'can make invoice'
+        ]);
+
+     }
 
     /**
      * Saving Offline invoices

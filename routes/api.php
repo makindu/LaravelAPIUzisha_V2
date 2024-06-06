@@ -24,10 +24,12 @@ use App\Http\Controllers\AccountsController;
 use App\Http\Controllers\CautionsController;
 use App\Http\Controllers\CommentsController;
 use App\Http\Controllers\InvoicesController;
+use App\Http\Controllers\PosusersController;
 use App\Http\Controllers\RequestsController;
 use App\Http\Controllers\ServantsController;
 use App\Http\Controllers\MaterialsController;
 use App\Http\Controllers\SafeguardController;
+use App\Http\Controllers\VehiculesController;
 use OpenApi\Annotations\AdditionalProperties;
 use App\Http\Controllers\DepartementController;
 use App\Http\Controllers\EnterprisesController;
@@ -62,6 +64,7 @@ use App\Http\Controllers\ExpendituresLimitsController;
 use App\Http\Controllers\ProviderControllerController;
 use App\Http\Controllers\RequestapprovmentsController;
 use App\Http\Controllers\ServicesControllerController;
+use App\Http\Controllers\EnterprisesinvoicesController;
 use App\Http\Controllers\DecisionDecisionteamController;
 use App\Http\Controllers\DetailsInvoicesStatusController;
 use App\Http\Controllers\ServicesadditionalfeesController;
@@ -74,8 +77,6 @@ use App\Http\Controllers\DecisionChiefdepartmentsController;
 use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
-use App\Http\Controllers\EnterprisesinvoicesController;
-use App\Http\Controllers\PosusersController;
 
 /*
 |--------------------------------------------------------------------------
@@ -102,7 +103,7 @@ Route::patch('/users/update/{id}',[UsersController::class,'update2']);
 Route::post('/users/updatestatus',[UsersController::class,'changerStatus']);
 Route::post('/users/updatepassword',[UsersController::class,'updatePassword']);
 Route::get('/getuser',[UsersController::class,'getone']);
-Route::post('/users/dashboard/{id}',[UsersController::class,'dashboard']);
+Route::post('/users/dashboard/{id}',[UsersController::class,'dashboardBasedDateOperation']);
 Route::post('/users/makeassuperadmin',[UsersController::class,'makeassuperadmin']);
 Route::post('/users/resetpassword',[UsersController::class,'ifexistsemailadress']);
 
@@ -221,6 +222,7 @@ Route::apiResource('enterprises',EnterprisesController::class);
 Route::put('/enterprises/update/{id}',[EnterprisesController::class,'update2']);
 Route::get('/enterprises/getinfos/{id}',[EnterprisesController::class,'getone']);
 Route::post('/enterprises/resetdata',[EnterprisesController::class,'resetalldata']);
+Route::post('/enterprises/resetdates',[EnterprisesController::class,'datesConsolidation']);
 
 //Enterprises invoices abonments
 Route::apiResource('enterprisesinvoices',EnterprisesinvoicesController::class);
@@ -273,12 +275,14 @@ Route::get('/stockhistory/serviceid/{serviceid}',[StockHistoryControllerControll
 Route::post('/stockhistory/byuser',[StockHistoryControllerController::class,'getbyuser']);
 Route::post('/stockhistory/byuser/grouped',[StockHistoryControllerController::class,'getbyusergrouped']);
 Route::post('/stockhistory/byuser/byarticles',[StockHistoryControllerController::class,'articlesgetbyusergrouped']);
-Route::post('/stockhistory/byuser/newreportstockhistory',[StockHistoryControllerController::class,'newReportStockHistory']);
+Route::post('/stockhistory/byuser/byarticlesbasedoperation',[StockHistoryControllerController::class,'articlesgetbyusergroupedbasedoperation']);
+Route::post('/stockhistory/byuser/newreportstockhistory',[StockHistoryControllerController::class,'newReportStockHistorybasedondateoperation']);
 Route::post('/stockhistory/expiration',[StockHistoryControllerController::class,'reportexpiration']);
 Route::post('/stockhistory/fordeposit',[StockHistoryControllerController::class,'fordeposit']);
 Route::post('/stockhistory/multipleservices',[StockHistoryControllerController::class,'multipleservices']);
 Route::post('/stockhistory/multiplestore',[StockHistoryControllerController::class,'multiplestore']);
 Route::post('/stockhistory/report/bydeposits',[StockHistoryControllerController::class,'reportbydeposits']);
+Route::post('/stockhistory/report/bydepositsbasedonoperationdate',[StockHistoryControllerController::class,'reportbydepositsbasedondateoperation']);
 
 //Transfert stock
 Route::apiResource('transfertstock',TransfertstockController::class);
@@ -387,12 +391,14 @@ Route::get('/fences/show/{id}',[FencesController::class,'getone']);
 Route::apiResource('fenceticketing',FenceTicketingController::class);
 //Invoices (Factures)
 Route::apiResource('invoices',InvoicesController::class);
+Route::post('/newinvoice/mobile',[InvoicesController::class,'storemobile']);
+Route::post('/newinvoice/garage',[InvoicesController::class,'storegarage']);
 Route::get('/invoices/enterprise/{id}',[InvoicesController::class,'index']);
 Route::get('/invoices/customer/{id}',[InvoicesController::class,'foracustomer']);
 Route::post('/invoices/filteredcustomer',[InvoicesController::class,'forACustomerFiltered']);
 Route::post('/invoices/reportbyuser',[InvoicesController::class,'reportUserSelling']);
 Route::post('/invoices/newreportbyuser',[InvoicesController::class,'reportUserSelling2']);
-Route::post('/invoices/reportUserSellingwithoutdetails',[InvoicesController::class,'reportUserSellingwithoutdetails']);
+Route::post('/invoices/reportUserSellingwithoutdetails',[InvoicesController::class,'reportUserSellingwithoutdetailsbasedoperationdates']);
 Route::post('/invoices/reportUserSelling2filteredbytva',[InvoicesController::class,'reportUserSelling2filteredbytva']);
 Route::post('/invoices/reportbyuser/grouped',[InvoicesController::class,'reportUserSellingGroupByArticle']);
 Route::get('/invoices/comptecourant/{customerid}',[InvoicesController::class,'comptecourant']);
@@ -406,7 +412,7 @@ Route::apiResource('invoicedetails',InvoiceDetailsController::class);
 
 Route::apiResource('debts',DebtsController::class);
 Route::get('/debts/enterprise/{enterprise_id}',[DebtsController::class,'index']);
-Route::post('/reports/credits',[DebtsController::class,'debtsgroupedbycustomer']);
+Route::post('/reports/credits',[DebtsController::class,'debtsgroupedbycustomerbasedodateoperation']);
 Route::post('/reports/credits/debtsfilteredbycriteria',[DebtsController::class,'debtsfilteredbycriteria']);
 Route::post('/debts/customer',[DebtsController::class,'compteCourant']);
 Route::post('/debts/customer/filteredcomptecourantcustomer',[DebtsController::class,'FilteredcompteCourant']);
@@ -471,9 +477,11 @@ Route::delete('/limitsusers/delete/{id}',[UsersExpendituresLimitsController::cla
 /**
  * reports for uzisha stock
  */
-Route::post('/reports/cashbook',[InvoicesController::class,'cashbook']);
+Route::post('/reports/cashbook',[InvoicesController::class,'cashbookbasedondateoperations']);
 Route::post('/reports/invoices/reportbyarticles',[InvoicesController::class,'reportbyarticles']);
+Route::post('/reports/invoices/reportbyarticlesbasedondateoperation',[InvoicesController::class,'reportbyarticlesbasedondateoperation']);
 Route::post('/reports/invoices/reportbydepositsarticles',[InvoicesController::class,'reportbydepositsarticles']);
+Route::post('/reports/invoices/reportbydepositsarticlesbasedonoperation',[InvoicesController::class,'reportbydepositsarticlesbasedondateoperation']);
 Route::post('/reports/invoices/reportbyagents',[InvoicesController::class,'reportbyagents']);
 Route::post('/reports/invoices/creditsByCutomers',[DebtsController::class,'creditsByCutomers']);
 
@@ -581,7 +589,7 @@ Route::patch('pressing/accounts/update/{id}',[AccountsController::class,'update2
  * invoices
  */
 Route::post('/pressing/invoices/reportbyuser',[InvoicesController::class,'reportUserSelling']);
-Route::post('/pressing/invoices/newreportbyuser',[InvoicesController::class,'reportUserSelling2']);
+Route::post('/pressing/invoices/newreportbyuser',[InvoicesController::class,'reportUserSelling2basedondatesoperations']);
 
 //Pressing otherentries
 Route::post('/pressing/otherentries',[OtherEntriesController::class,'store']);
@@ -604,4 +612,9 @@ Route::post('/deposit/services/searchbybarcode',[ServicesControllerController::c
 //CUSTOMERS
 Route::get('/customers/search/enterprise/{id}',[CustomerControllerController::class,'search']);
 Route::post('/customers/search-words',[CustomerControllerController::class,'searchbywords']);
+
+//vehicules
+Route::apiResource('vehicules',VehiculesController::class);
+Route::get('/vehicules/enterprise/{id}',[VehiculesController::class,'index']);
+Route::post('/vehicules/search-words',[VehiculesController::class,'searchbywords']);
 

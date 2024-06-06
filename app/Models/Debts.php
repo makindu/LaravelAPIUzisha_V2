@@ -17,6 +17,7 @@ class Debts extends Model
         'sold',
         'maturity',
         'uuid',
-        'sync_status'
+        'sync_status',
+        'done_at'
     ];
 }

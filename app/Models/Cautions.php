@@ -16,6 +16,7 @@ class Cautions extends Model
         'amount_used',
         'enterprise_id',
         'uuid',
-        'sync_status'
+        'sync_status',
+        'done_at'
     ];
 }

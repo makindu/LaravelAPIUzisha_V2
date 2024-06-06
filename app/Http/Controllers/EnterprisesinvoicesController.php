@@ -55,6 +55,12 @@ class EnterprisesinvoicesController extends Controller
     public function store(StoreenterprisesinvoicesRequest $request)
     {
         try {
+            $request['uuid']=$this->getUuId("C","EI");
+            
+            $request['from']=date("Y-m-d");
+            $datefromtimestamp=strtotime($request['from']);
+            $datefin=date('Y-m-d',strtotime('+'.$request['nbrmonth'].'month',$datefromtimestamp));
+            $request['to']=$datefin;
             $result = enterprisesinvoices::create($request->all());
             return  response()->json([
                 "status"=>200,

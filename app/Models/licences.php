@@ -5,15 +5,17 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class DebtPayments extends Model
+class licences extends Model
 {
     use HasFactory;
     protected $fillable=[
-        'done_by_id',
-        'debt_id',
-        'amount_payed',
+        'vehicule_id',			
+        'updated_by',
         'uuid',
-        'sync_status',
-        'done_at'
+        'status',
+        'to',
+        'from',
+        'created_by_id',
+        'enterprise_id'
     ];
 }

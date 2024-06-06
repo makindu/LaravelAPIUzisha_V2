@@ -13,11 +13,14 @@ class enterprisesinvoices extends Model
         'enterprise_id',
         'status',
         'user_id',
-        'user_id',
         'from',
         'to',
         'type',
         'amount_due',
-        'payed'
+        'payed',
+        'uuid',
+        'nbrmonth',
+        'unite_price',
+        'nbrpersons'
     ];
 }

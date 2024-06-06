@@ -269,6 +269,44 @@ class EnterprisesController extends Controller
     }
 
     /**
+     * Condolidate dates operations with created_at
+     */
+    public function datesConsolidation(Request $request){
+        try {
+            $expenditures= DB::update("update expenditures set done_at = created_at where done_at IS NULL");
+            $entries= DB::update("update other_entries set done_at = created_at where done_at IS NULL");
+            $stock= DB::update("update stock_history_controllers set done_at = created_at where done_at IS NULL");
+            $invoices= DB::update("update invoices set date_operation=created_at where date_operation IS NULL ");
+            $detailsinvoices= DB::update("update invoice_details set date_operation=created_at where date_operation IS NULL ");
+            $debts= DB::update("update debts set done_at=created_at where done_at IS NULL ");
+            $payments= DB::update("update debt_payments set done_at=created_at where done_at IS NULL ");
+            $pointshistories= DB::update("update customerspointshistories set done_at=created_at where done_at IS NULL ");
+            $cautions= DB::update("update cautions set done_at=created_at where done_at IS NULL ");
+            return response()->json([
+                "message"=>"success",
+                "data"=>[
+                    "expenditures"=>$expenditures,
+                    "entries"=>$entries,
+                    "stock"=>$stock,
+                    "invoices"=>$invoices,
+                    "detailsinvoices"=>$detailsinvoices,
+                    "debts"=>$debts,
+                    "payments"=>$payments,
+                    "pointshistories"=>$pointshistories,
+                    "cautions"=>$cautions
+                ],
+                "error"=>null
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                "message"=>"success",
+                "data"=>null,
+                "error"=>$th
+            ]);
+        }
+    }
+
+    /**
      * Display the specified resource.
      *
      * @param  \App\Models\Enterprises  $enterprises

@@ -16,6 +16,7 @@ class customerspointshistory extends Model
         'point',
         'type',
         'value',
-        'used'
+        'used',
+        'done_at'
     ];
 }

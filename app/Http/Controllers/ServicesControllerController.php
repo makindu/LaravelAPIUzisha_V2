@@ -666,6 +666,12 @@ class ServicesControllerController extends Controller
         ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
         ->where('services_controllers.id', '=', $servicesController->id)
         ->get(['C.name as category_name','U.name as uom_name','U.symbol as uom_symbol','services_controllers.*'])[0];
+        // foreach ($prices as $value) {
+        //     if($value['principal']==1){
+        //         $service['price']=$value['price'];
+        //     }
+        // }
+        
         
         return ['service'=>$service,'prices'=>$prices];
     }

@@ -23,7 +23,11 @@ class CreateEnterprisesinvoicesTable extends Migration
             $table->date('to');
             $table->string('type');
             $table->string('status')->default("pending");
+            $table->string('uuid');
+            $table->integer('nbrmonth');
+            $table->integer('nbrpersons');
             $table->double('amount_due');
+            $table->double('unite_price');
             $table->boolean('payed')->default(false);
             $table->timestamps();
         });
