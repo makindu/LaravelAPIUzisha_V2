@@ -217,6 +217,80 @@ class StockHistoryControllerController extends Controller
         return ['ungrouped'=>$list_data,'grouped'=>$grouped_data,'services_group'=>[],'from'=>$request['from'],'to'=>$request['to'],'tabular'=>$this->newReportStockHistory($request)];
      }
      
+     /**
+      * get stock history by user based on date operation
+      */
+     public function getbyuserbasedondateoperation(Request $request){
+    
+        $list_data=[];
+        $user=$this->getinfosuser($request['user_id']);
+        $enterprise=$this->getEse($user['id']);
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if ($user['user_type']=='super_admin') {
+            $deposits=DepositController::where('enterprise_id','=',$enterprise['id'])->get();
+            foreach ($deposits as $deposit) {
+                $list=collect(StockHistoryController::where('depot_id','=',$deposit['id'])
+                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->orderby('done_at','asc')
+                ->get());
+                foreach ($list as $item) {
+                    array_push($list_data,$this->show($item));
+                }
+            }
+        } else {
+            $deposits=DepositsUsers::where('user_id','=',$request->user_id)->get();
+            foreach ($deposits as $deposit) {
+                $list=collect(StockHistoryController::where('depot_id','=',$deposit->deposit_id)
+                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->orderby('done_at','desc')
+                ->get());
+                foreach ($list as $item) {
+                    array_push($list_data,$this->show($item));
+                }
+             }
+        }
+        
+        return response()->json([
+            "status"=>200,
+            "message"=>"success",
+            "data"=>$list_data,
+            "from"=>$request['from'],
+            'to'=>$request['to']
+        ]);
+     }
+     
+     /**
+      * report stock grouped by dates
+      */
+      public function reportstockgroupedbydates(Request $request){
+           
+        $intervals=[];
+        $datatoreturns=[];
+        $fromdate=Carbon::parse($request['from']);
+        $todate=Carbon::parse($request['to']);
+
+        while($fromdate<=$todate){
+            array_push($intervals,$fromdate->toDateString());
+            $fromdate->addDay();
+        }
+        $cumul=$this->newReportStockHistorybasedondateoperation($request)->original;
+        foreach ($intervals as $dateoperation) {
+            $request['from']=$dateoperation;
+            $request['to']=$dateoperation;
+            $data=$this->getbyuserbasedondateoperation($request)->original;
+            array_push($datatoreturns,$data);
+        }
+        return response()->json([
+            "cumul"=>$cumul['data'],
+            "details"=>$datatoreturns
+        ]) ;
+    
+      }
+
      public function getbyusergrouped(Request $request){
         $list_data=[];
         $user=$this->getinfosuser($request['user_id']);
@@ -315,6 +389,7 @@ class StockHistoryControllerController extends Controller
             $request['from']= date('Y-m-d');
             $request['to']=date('Y-m-d');
         }
+
         $service_ctrl = new ServicesControllerController();
         $services=collect(ServicesController::whereIn('id',$request['services'])->get());
         $services->transform(function ($service) use ($service_ctrl,$request){
@@ -332,6 +407,13 @@ class StockHistoryControllerController extends Controller
             ->get('total_withdraw')->first();
             $service['total_withdraw']=$withdraw['total_withdraw'];
             $service['sold']=$service['total_entries']-$withdraw['total_withdraw'];
+            $service['details']=$this->stockhistorybyarticleforaspecifiperiod(
+                new Request([
+                    "from"=>$request['from'],
+                    "to"=>$request['to'],
+                    "service_id"=>$service['id']
+                ])
+            );
             return $service;
         });
       
@@ -345,6 +427,21 @@ class StockHistoryControllerController extends Controller
             "totalSoldStock"=>$services->sum('sold')
         ]);
      }
+
+     /**
+      * details stock history by article for a specifi period
+      */
+      public function stockhistorybyarticleforaspecifiperiod(Request $request){
+        $list_data=[];
+        $mouvements=StockHistoryController::where('service_id','=',$request['service_id'])
+        ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+        ->get();
+        foreach ($mouvements as $item) {
+            array_push($list_data,$this->show($item));
+        }
+        
+        return $list_data;
+      }
 
      public function newReportStockHistory(Request $request){
         $list_data=[];
@@ -585,12 +682,20 @@ class StockHistoryControllerController extends Controller
                         $service['total_entries']=$entries['total_entries'];
                         $service['total_withdraw']=$withdraw['total_withdraw'];
                         $service['sold']=$entries['total_entries']-$withdraw['total_withdraw'];
+                       
                         return $service;
                     });
+                  
                     $deposit['services']=$services;
                     $deposit['total_entries']=$services->sum('total_entries');
                     $deposit['total_withdraw']=$services->sum('total_withdraw');
                     $deposit['total_sold']=$services->sum('sold');
+                    $deposit['details']=$this->detailsdepositwitharticlesincoming(new Request([
+                        "from"=>$request['from'],
+                        "to"=>$request['to'],
+                        "deposit_id"=>$deposit['id'],
+                        "services"=>$request['services']
+                    ]));
                 }else{
                     //if no services sent
                         $services=collect(StockHistoryController::where('depot_id','=',$deposit['id'])
@@ -613,8 +718,13 @@ class StockHistoryControllerController extends Controller
                         $deposit['total_entries']=$services->sum('total_entries');
                         $deposit['total_withdraw']=$services->sum('total_withdraw');
                         $deposit['total_sold']=$services->sum('sold');
-                        
-                    $deposit['services']=$services;      
+                        $deposit['services']=$services;
+                        $deposit['details']=$this->detailsdepositwitharticlesincoming(new Request([
+                            "from"=>$request['from'],
+                            "to"=>$request['to'],
+                            "deposit_id"=>$deposit['id'],
+                            "services"=>[]
+                        ]));      
                 }
                 return $deposit;
             });
@@ -626,6 +736,35 @@ class StockHistoryControllerController extends Controller
             'to'=>$request['to']
         ]);
       }
+
+    /**
+     * details by deposit with articles incoming
+     */
+    public function detailsdepositwitharticlesincoming(Request $request){
+        $list_data=[];
+       
+        if (count($request['services'])>0) {
+            $list=StockHistoryController::where('depot_id','=',$request['deposit_id'])
+            ->whereIn('service_id',$request['services'])
+            ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->orderby('done_at','asc')
+            ->get();
+            foreach ($list as $item) {
+                array_push($list_data,$this->show($item));
+            }
+        }else{
+            $list=StockHistoryController::where('depot_id','=',$request['deposit_id'])
+            ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->orderby('done_at','asc')
+            ->get();
+            foreach ($list as $item) {
+                array_push($list_data,$this->show($item));
+            }
+        }
+       
+
+        return $list_data;
+    }
 
     /**
      * Show the form for editing the specified resource.

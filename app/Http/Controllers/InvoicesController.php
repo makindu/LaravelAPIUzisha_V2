@@ -29,6 +29,7 @@ use App\Models\pressingStockStory;
 use App\Models\ServicesController;
 use App\Models\User;
 use App\Models\licences;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use stdClass;
 
@@ -131,6 +132,45 @@ class InvoicesController extends Controller
             "money"=>$this->defaultmoney($this->getEse($request['user_id'])['id'])
         ]);
      }
+
+    /**
+     * Report by articles based on dates operations
+     */
+     public function reportbyarticlesbasedondates(Request $request){
+        $services=[];
+        if(isset($request->from)==false && empty($request->from) && isset($request->to)==false && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if (isset($request->services) && count($request->services)>0) {
+            $services=collect(ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
+            ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
+            ->whereIn('services_controllers.id',$request['services'])
+            ->get(['services_controllers.*','C.name as category_name','U.symbol as uom_symbol']));
+
+                $services->transform(function ($service) use ($request){
+                    $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                                ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
+                                ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->where('invoice_details.service_id','=',$service['id'])
+                                ->where('I.type_facture','<>','proforma')
+                                ->get()->first();
+                    $service['total_quantity']=$mouvements['total_quantity'];
+                    $service['total_sell']=$mouvements['total_sell'];
+                    return $service;
+                });
+        }
+
+        return response()->json([
+            "data"=>$services,
+            "from"=>$request['from'],
+            "to"=>$request['to'],
+            "totalquantities"=>$services->sum('total_quantity'),
+            "totalsells"=>$services->sum('total_sell'),
+            "money"=>$this->defaultmoney($this->getEse($request['user_id'])['id'])
+        ]);
+     }
      
      /**
      * Report by articles based on date operation
@@ -151,7 +191,7 @@ class InvoicesController extends Controller
                 $services->transform(function ($service) use ($request){
                     $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                                 ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
-                                ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                                 ->where('invoice_details.service_id','=',$service['id'])
                                 ->where('I.type_facture','<>','proforma')
                                 ->get()->first();
@@ -279,7 +319,7 @@ class InvoicesController extends Controller
                     $services->transform(function ($service) use ($request,$deposit){
                         $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                         ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
-                        ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                        ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                         ->where('invoice_details.service_id','=',$service['id'])
                         ->where('I.type_facture','<>','proforma')
                         ->where('invoice_details.deposit_id','=',$deposit['id'])
@@ -297,7 +337,7 @@ class InvoicesController extends Controller
                 }else{
                     $services=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                     ->select('invoice_details.service_id')
-                    ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                     ->where('I.type_facture','<>','proforma')
                     ->where('invoice_details.deposit_id','=',$deposit['id'])
                     ->groupByRaw('invoice_details.service_id')
@@ -311,7 +351,7 @@ class InvoicesController extends Controller
 
                         $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                                             ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
-                                            ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                            ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                                             ->where('invoice_details.service_id','=',$service['id'])
                                             ->where('I.type_facture','<>','proforma')
                                             ->where('invoice_details.deposit_id','=',$deposit['id'])
@@ -383,6 +423,76 @@ class InvoicesController extends Controller
                     $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                     ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
                     ->whereBetween('invoice_details.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->where('invoice_details.service_id','=',$service['id'])
+                    ->where('I.type_facture','<>','proforma')
+                    ->where('I.edited_by_id','=',$agent['id'])
+                    ->get()->first();
+
+                    $service['total_quantity']=$mouvements['total_quantity'];
+                    $service['total_sell']=$mouvements['total_sell'];
+
+                    return $service;
+                });
+
+                $agent['services']=$services;
+                $agent['total_quantities']=$services->sum('total_quantity');
+                $agent['total_sells']=$services->sum('total_sell');
+                return $agent;
+            }); 
+        }
+       
+        return response()->json([
+            "data"=>$agents,
+            "from"=>$request['from'],
+            "to"=>$request['to'],
+            "totalquantities"=>$agents->sum('total_quantities'),
+            "totalsells"=>$agents->sum('total_sells'),
+            "money"=>$this->defaultmoney($this->getEse($request['user_id'])['id'])
+        ]);
+     }     
+     
+     /**
+     * Report sell by agents based on date operation
+     */
+     public function reportbyagentsbasedondateoperations(Request $request){
+        $agents=[];
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if (isset($request['agents']) && !empty($request['agents'])) {
+            $agents=collect(User::whereIn('id',$request['agents'])->select([
+                'id',
+                'user_name',
+                'user_mail',
+                'user_phone',
+                'user_type',
+                'status',
+                'note',
+                'avatar',
+                'full_name'
+                ])->get());
+
+            $agents->transform(function ($agent) use($request){
+
+                $services=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                ->select('invoice_details.service_id')
+                ->whereBetween('I.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->where('I.type_facture','<>','proforma')
+                ->where('I.edited_by_id','=',$agent['id'])
+                ->groupByRaw('invoice_details.service_id')
+                ->get());
+
+                $services->transform(function ($service) use ($request,$agent){
+                    $service=ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
+                    ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
+                    ->where('services_controllers.id','=',$service['service_id'])
+                    ->get(['services_controllers.*','C.name as category_name','U.symbol as uom_symbol'])->first();
+
+                    $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                    ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
+                    ->whereBetween('I.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                     ->where('invoice_details.service_id','=',$service['id'])
                     ->where('I.type_facture','<>','proforma')
                     ->where('I.edited_by_id','=',$agent['id'])
@@ -759,7 +869,7 @@ class InvoicesController extends Controller
     } 
     
     /**
-     * report by user for selling edited
+     * report by user for selling based on dates operations
      */
     public function reportUserSelling2basedondatesoperations(Request $request){
         $users=[];
@@ -808,7 +918,7 @@ class InvoicesController extends Controller
 
                     $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
                     ->select(DB::raw('sum(invoice_details.quantity) as total_quantity'),DB::raw('sum(invoice_details.total) as total_sell'))
-                    ->whereBetween('invoice_details.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                     ->where('invoice_details.service_id','=',$service['id'])
                     ->where('I.edited_by_id','=',$user['id'])
                     ->where('I.type_facture','<>','proforma')
@@ -1110,7 +1220,34 @@ class InvoicesController extends Controller
             'fidelityreport'=>$fidelityreport,
             'money'=>$this->defaultmoney($enterprise['id'])]);
     }
+
+    /**
+     * report grouped by dates
+     */
+    public function sellsreportgroupedbydates(Request $request){
+        $intervals=[];
+        $datatoreturns=[];
+        $fromdate=Carbon::parse($request['from']);
+        $todate=Carbon::parse($request['to']);
+
+        while($fromdate<=$todate){
+            array_push($intervals,$fromdate->toDateString());
+            $fromdate->addDay();
+        }
+        $cumul=$this->reportUserSellingwithoutdetailsbasedoperationdates($request)->original;
+        foreach ($intervals as $dateoperation) {
+            $request['from']=$dateoperation;
+            $request['to']=$dateoperation;
+            $data=$this->reportUserSelling2basedondatesoperations($request)->original;
+            array_push($datatoreturns,$data);
+        }
     
+        return response()->json([
+            "cumul"=>$cumul,
+            "details"=>$datatoreturns
+        ]) ;
+    }
+
     /**
      * report by user for selling edited
      */
@@ -1192,6 +1329,138 @@ class InvoicesController extends Controller
             'subtot_sold'=>$users->sum('sold'),
             'fidelityreport'=>$fidelityreport,
             'money'=>$this->defaultmoney($enterprise['id'])]);
+    }
+
+    /**
+     * grouped sell report by prices
+     */
+    public function groupreportbyprices(Request $request){
+        $list_data=[];
+        $user=$this->getinfosuser($request['user_id']);
+        $enterprise=$this->getEse($user['id']);
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if ($user['user_type']=='super_admin') {
+            $users=Invoices::where('enterprise_id','=',$enterprise['id'])
+            ->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->select('edited_by_id')
+            ->groupBy('edited_by_id')
+            ->get();
+            
+            foreach ($users as $user) {
+                $user['user']=$this->getinfosuser($user['edited_by_id']);
+                $prices=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                // ->leftjoin('prices_categories as PC','invoice_details.price','=','PC.price')
+                ->where('I.edited_by_id','=',$user['edited_by_id'])
+                ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->select('invoice_details.price')
+                ->groupBy('invoice_details.price')
+                ->get());
+
+                $prices=$prices->map(function ($price) use ($request,$user){
+                    $servicesgrouped=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                                    ->where('I.edited_by_id','=',$user['edited_by_id'])
+                                    ->where('invoice_details.price','=',$price['price'])
+                                    ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                    ->select('invoice_details.service_id')
+                                    ->groupBy('invoice_details.service_id')
+                                    ->get());
+
+                    $services=$servicesgrouped->map(function ($service) use ($request,$user,$price){
+                        $details=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                                ->select(DB::raw('sum(invoice_details.quantity) as totalquantities'),DB::raw('sum(invoice_details.total) as totalprices'))
+                                ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->where('I.edited_by_id','=',$user['edited_by_id'])
+                                ->where('I.type_facture','<>','proforma')
+                                ->where('invoice_details.service_id','=',$service['service_id'])
+                                ->where('invoice_details.price','=',$price['price'])
+                                ->get(['totalquantities','totalprices'])
+                                ->first();
+                        $service['totalquantities']=$details['totalquantities'];
+                        $service['totalprices']=$details['totalprices'];
+                        $service['service_detail']=servicesController::leftjoin('unit_of_measure_controllers as UOM','services_controllers.uom_id','=','UOM.id')
+                                                                        ->where('services_controllers.id','=',$service['service_id'])
+                                                                        ->get(['services_controllers.*','UOM.symbol','UOM.name as uom_name'])->first();
+                        return $service;
+                    });
+                    $price['label']="";
+                    $price['details']=$services;
+                    return $price;
+                });
+                $user['prices']=$prices;
+                
+                array_push($list_data,$user); 
+            }
+        } 
+
+        return response()->json([
+            'cumul'=>$this->reportsellservicescumul($request),
+            'data'=>$list_data,
+            'from'=>$request['from'],
+            'to'=>$request['to'],
+            'money'=>$this->defaultmoney($enterprise['id'])]);
+
+    }
+
+    /**
+     * cumul report cumule prices
+     */
+    public function reportsellservicescumul(Request $request){
+        $list_data= new stdclass;
+        $user=$this->getinfosuser($request['user_id']);
+        $enterprise=$this->getEse($user['id']);
+        if(empty($request->from) && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if ($enterprise && $user['user_type']=='super_admin') {
+
+            $cumulprices=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                        // ->leftjoin('prices_categories as PC','invoice_details.price','=','PC.price')
+                        ->where('I.enterprise_id','=',$enterprise['id'])
+                        ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                        ->select('invoice_details.price')
+                        ->groupBy('invoice_details.price')
+                        ->get());
+
+                $cumulprices=$cumulprices->map(function ($price) use ($request,$enterprise){
+                    $cumulservices=collect(InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                                    ->where('I.enterprise_id','=',$enterprise['id'])
+                                    ->where('invoice_details.price','=',$price['price'])
+                                    ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                    ->select('invoice_details.service_id')
+                                    ->groupBy('invoice_details.service_id')
+                                    ->get());
+
+                    $servicescumulative=$cumulservices->map(function ($service) use ($request,$price,$enterprise){
+                        $details=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                                ->select(DB::raw('sum(invoice_details.quantity) as totalquantities'),DB::raw('sum(invoice_details.total) as totalprices'))
+                                ->where('I.enterprise_id','=',$enterprise['id'])
+                                ->whereBetween('I.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->where('I.type_facture','<>','proforma')
+                                ->where('invoice_details.service_id','=',$service['service_id'])
+                                ->where('invoice_details.price','=',$price['price'])
+                                ->get(['totalquantities','totalprices'])
+                                ->first();
+                        $service['totalquantities']=$details['totalquantities'];
+                        $service['totalprices']=$details['totalprices'];
+                        $service['service_detail']=servicesController::leftjoin('unit_of_measure_controllers as UOM','services_controllers.uom_id','=','UOM.id')
+                                                                        ->where('services_controllers.id','=',$service['service_id'])
+                                                                        ->get(['services_controllers.*','UOM.symbol','UOM.name as uom_name'])->first();
+                        return $service;
+                    });
+                    $price['label']="";
+                    $price['details']=$servicescumulative;
+                    return $price;
+                });
+            $list_data=$cumulprices;
+        }
+
+        return $list_data;
     }
 
      /**

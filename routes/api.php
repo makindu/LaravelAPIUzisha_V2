@@ -273,6 +273,7 @@ Route::apiResource('stockhistory',StockHistoryControllerController::class);
 Route::get('/stockhistory/enterprise/{id}',[StockHistoryControllerController::class,'index']);
 Route::get('/stockhistory/serviceid/{serviceid}',[StockHistoryControllerController::class,'getbyservice']);
 Route::post('/stockhistory/byuser',[StockHistoryControllerController::class,'getbyuser']);
+Route::post('/stockhistory/byuser/getbyuserbasedondateoperation',[StockHistoryControllerController::class,'getbyuserbasedondateoperation']);
 Route::post('/stockhistory/byuser/grouped',[StockHistoryControllerController::class,'getbyusergrouped']);
 Route::post('/stockhistory/byuser/byarticles',[StockHistoryControllerController::class,'articlesgetbyusergrouped']);
 Route::post('/stockhistory/byuser/byarticlesbasedoperation',[StockHistoryControllerController::class,'articlesgetbyusergroupedbasedoperation']);
@@ -283,6 +284,7 @@ Route::post('/stockhistory/multipleservices',[StockHistoryControllerController::
 Route::post('/stockhistory/multiplestore',[StockHistoryControllerController::class,'multiplestore']);
 Route::post('/stockhistory/report/bydeposits',[StockHistoryControllerController::class,'reportbydeposits']);
 Route::post('/stockhistory/report/bydepositsbasedonoperationdate',[StockHistoryControllerController::class,'reportbydepositsbasedondateoperation']);
+Route::post('/stockhistory/report/reportstockgroupedbydates',[StockHistoryControllerController::class,'reportstockgroupedbydates']);
 
 //Transfert stock
 Route::apiResource('transfertstock',TransfertstockController::class);
@@ -399,6 +401,7 @@ Route::post('/invoices/filteredcustomer',[InvoicesController::class,'forACustome
 Route::post('/invoices/reportbyuser',[InvoicesController::class,'reportUserSelling']);
 Route::post('/invoices/newreportbyuser',[InvoicesController::class,'reportUserSelling2']);
 Route::post('/invoices/reportUserSellingwithoutdetails',[InvoicesController::class,'reportUserSellingwithoutdetailsbasedoperationdates']);
+Route::post('/invoices/sellsreportgroupedbydates',[InvoicesController::class,'sellsreportgroupedbydates']);
 Route::post('/invoices/reportUserSelling2filteredbytva',[InvoicesController::class,'reportUserSelling2filteredbytva']);
 Route::post('/invoices/reportbyuser/grouped',[InvoicesController::class,'reportUserSellingGroupByArticle']);
 Route::get('/invoices/comptecourant/{customerid}',[InvoicesController::class,'comptecourant']);
@@ -477,13 +480,21 @@ Route::delete('/limitsusers/delete/{id}',[UsersExpendituresLimitsController::cla
 /**
  * reports for uzisha stock
  */
-Route::post('/reports/cashbook',[InvoicesController::class,'cashbookbasedondateoperations']);
+//v1
+Route::post('/reports/cashbook',[InvoicesController::class,'cashbook']);
 Route::post('/reports/invoices/reportbyarticles',[InvoicesController::class,'reportbyarticles']);
-Route::post('/reports/invoices/reportbyarticlesbasedondateoperation',[InvoicesController::class,'reportbyarticlesbasedondateoperation']);
 Route::post('/reports/invoices/reportbydepositsarticles',[InvoicesController::class,'reportbydepositsarticles']);
-Route::post('/reports/invoices/reportbydepositsarticlesbasedonoperation',[InvoicesController::class,'reportbydepositsarticlesbasedondateoperation']);
 Route::post('/reports/invoices/reportbyagents',[InvoicesController::class,'reportbyagents']);
 Route::post('/reports/invoices/creditsByCutomers',[DebtsController::class,'creditsByCutomers']);
+
+//v2
+Route::post('/reports/cashbook/cashbookbasedondateoperations',[InvoicesController::class,'cashbookbasedondateoperations']);
+Route::post('/reports/invoices/reportbyarticlesbasedondates',[InvoicesController::class,'reportbyarticlesbasedondates']);
+Route::post('/reports/invoices/reportbyarticlesbasedondateoperation',[InvoicesController::class,'reportbyarticlesbasedondateoperation']);
+Route::post('/reports/invoices/reportbydepositsarticlesbasedonoperation',[InvoicesController::class,'reportbydepositsarticlesbasedondateoperation']);
+Route::post('/reports/invoices/reportbyagentsbasedondateoperations',[InvoicesController::class,'reportbyagentsbasedondateoperations']);
+Route::post('/reports/invoices/creditsByCutomersbasedondate',[DebtsController::class,'creditsByCutomersbasedondate']);
+Route::post('/reports/invoices/groupreportbyprices',[InvoicesController::class,'groupreportbyprices']);
 
 /**
  * Pressings
