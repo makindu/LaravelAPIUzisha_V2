@@ -589,32 +589,34 @@ class UsersController extends Controller
 
                 //cash
                 $cash=Invoices::whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('type_facture','=','cash')->where('enterprise_id','=',$ese['id'])->get();
-                foreach ($cash as $invoice) {
-                    if ($defautmoney['id']==$invoice['money_id']) {
-                        $total_cash=$total_cash+$invoice['total'];
-                    } else {
-                        $rate=money_conversion::where('money_id1','=',$defautmoney['id'])->where('money_id2','=',$invoice['money_id'])->first();
-                        if(!$rate){
-                             $total_cash=($total_cash+$invoice['total'])*0;
-                        }else{
-                             $total_cash=($total_cash+$invoice['total'])* $rate['rate'];
-                        } 
-                    }
-                }
+                $total_cash=$cash->sum('total');
+                // foreach ($cash as $invoice) {
+                //     if ($defautmoney['id']==$invoice['money_id']) {
+                //         $total_cash=$total_cash+$invoice['total'];
+                //     } else {
+                //         $rate=money_conversion::where('money_id1','=',$defautmoney['id'])->where('money_id2','=',$invoice['money_id'])->first();
+                //         if(!$rate){
+                //              $total_cash=($total_cash+$invoice['total'])*0;
+                //         }else{
+                //              $total_cash=($total_cash+$invoice['total'])* $rate['rate'];
+                //         } 
+                //     }
+                // }
                 //credit
                 $credits=Invoices::leftjoin('debts as D','invoices.id','=','D.invoice_id')->whereBetween('invoices.date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('invoices.type_facture','=','credit')->where('invoices.enterprise_id','=',$ese['id'])->get(['invoices.*','D.sold']);
-                foreach ($credits as $invoice) {
-                    if ($defautmoney['id']==$invoice['money_id']) {
-                        $total_credits=$total_credits+$invoice['sold'];
-                    } else {
-                        $rate=money_conversion::where('money_id1','=',$defautmoney['id'])->where('money_id2','=',$invoice['money_id'])->first();
-                        if(!$rate){
-                            $total_credits=($total_credits+$invoice['sold'])*0;
-                        }else{
-                             $total_credits=($total_credits+$invoice['sold'])* $rate['rate'];
-                        } 
-                    }
-                }
+                $total_credits= $credits->sum('sold');
+                // foreach ($credits as $invoice) {
+                //     if ($defautmoney['id']==$invoice['money_id']) {
+                //         $total_credits=$total_credits+$invoice['sold'];
+                //     } else {
+                //         $rate=money_conversion::where('money_id1','=',$defautmoney['id'])->where('money_id2','=',$invoice['money_id'])->first();
+                //         if(!$rate){
+                //             $total_credits=($total_credits+$invoice['sold'])*0;
+                //         }else{
+                //              $total_credits=($total_credits+$invoice['sold'])* $rate['rate'];
+                //         } 
+                //     }
+                // }
                 //entries
                 $entries=OtherEntries::join('users as U','other_entries.user_id','=','U.id')->leftjoin('accounts as AC','other_entries.account_id','=','AC.id')->whereBetween('other_entries.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('other_entries.enterprise_id','=',$ese['id'])->get(['other_entries.*','AC.name as account_name','U.user_name']);
                 foreach ($entries as $entry) {
@@ -1137,6 +1139,6 @@ class UsersController extends Controller
         }else{
             $message='access denied';
         }
-        return ['message'=>$message,'user'=>$user,'enterprise'=>$actualEse];
+        return ['message'=>$message,'user'=>$user,'enterprise'=>$actualEse,'defaultmoney'=>$this->defaultmoney($actualEse['id'])];
     }
 }

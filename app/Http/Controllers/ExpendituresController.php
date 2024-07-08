@@ -96,6 +96,10 @@ class ExpendituresController extends Controller
         if(!$request['money_id']){
             $defaultmoney=$this->defaultmoney($request['enterprise_id']);
             $request['money_id']=$defaultmoney['id'];
+        } 
+        
+        if(!$request['done_at']){
+            $request['done_at']=date('Y-m-d');
         }
 
         $ifexists=UsersExpendituresLimits::join('expenditures_limits as EL','users_expenditures_limits.limit_id','=','EL.id')->where('users_expenditures_limits.user_id','=',$request['user_id'])->get()->first();

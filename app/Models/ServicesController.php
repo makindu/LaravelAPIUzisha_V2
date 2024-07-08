@@ -23,6 +23,8 @@ class ServicesController extends Model
        'nbrgros',
        'bonus_applicable',
        'has_vat',
-       'enterprise_id'	
+       'enterprise_id',
+       'status',
+       'service_usage'	
     ];
 }

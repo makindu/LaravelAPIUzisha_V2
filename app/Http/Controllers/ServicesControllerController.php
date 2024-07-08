@@ -10,20 +10,25 @@ use App\Models\DepositController;
 use App\Models\ServicesController;
 use Illuminate\Support\Facades\DB;
 use App\Models\StockHistoryController;
-use App\Http\Requests\StoreServicesControllerRequest;
 use App\Http\Requests\UpdateServicesControllerRequest;
 use App\Models\InvoiceDetails;
 use Exception;
-use PhpParser\Node\Stmt\TryCatch;
 use stdClass;
-
-use function PHPUnit\Framework\isNull;
 
 class ServicesControllerController extends Controller
 {
     public function index($enterprise_id)
     {
         $list=collect(ServicesController::where('enterprise_id','=',$enterprise_id)->orderby('name','asc')->get());
+        $listdata=$list->map(function ($item,$key){
+            return $this->show($item);
+        });
+        return $listdata;
+    }  
+    
+    public function subserviceslist($enterprise_id)
+    {
+        $list=collect(ServicesController::where('enterprise_id','=',$enterprise_id)->where('type','=',3)->orderby('name','asc')->get());
         $listdata=$list->map(function ($item,$key){
             return $this->show($item);
         });
@@ -41,6 +46,39 @@ class ServicesControllerController extends Controller
         });
        
         return $list;
+    }
+    
+    /**
+     * searching by categorie and deposit
+     */
+    public function searchbycategorieandeposit(Request $request){
+    
+        try {
+            $list=collect(DepositServices::join('services_controllers as S','deposit_services.service_id','=','S.id')
+            ->join('categories_services_controllers as C', 'S.category_id','=','C.id')
+            ->where('S.category_id', '=', $request['category_id'])
+            ->where('deposit_services.deposit_id', '=', $request['deposit_id'])
+            ->limit(20)
+            ->get('deposit_services.*'));
+            $list->transform(function ($item){
+                return $this->servicedetail($item);
+            });
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$list
+            ]);
+        } catch (\Throwable $th) {
+             return response()->json([
+                    "message"=>"error",
+                    "status"=>500,
+                    "error"=>$th,
+                    "data"=>null
+                ]);
+        }
+
+       
     }
 
     /**
@@ -360,6 +398,31 @@ class ServicesControllerController extends Controller
     }
 
     /**
+     * availables and unavailables services list
+     */
+    public function availablesunavailablesservices(Request $request){
+        $unavailables=[];
+        $availables=[];
+
+        $availables=collect(ServicesController::where('status','=','available')->where('service_usage','=','location')->where('type','=',2)->where('enterprise_id','=',$request['enterprise_id'])->get());
+        $availables= $availables->map(function ($service){
+            return $this->show($service);
+        });
+
+        $unavailables=collect(ServicesController::where('status','=','unavailable')->where('service_usage','=','location')->where('enterprise_id','=',$request['enterprise_id'])->get());
+        $unavailables=$unavailables->map(function ($service){
+            return $this->show($service);
+        });
+
+        return response()->json([
+            "message"=>"success",
+            "status"=>200,
+            "availables"=>$availables,
+            "unavailables"=>$unavailables
+        ]);
+    }
+
+    /**
      * getting detail for a service in deposit
      */
     public function servicedetail(DepositServices $servicesController)
@@ -386,7 +449,6 @@ class ServicesControllerController extends Controller
         $data = DepositServices::where('deposit_id', '=', $deposit_id)->get();
         foreach ($data as $service) {
             $funded = $this->serviceDeposit(new Request(['deposit_id' => $deposit_id, 'service_id' => $service['service_id']]));
-            // $funded = $this->show(servicesController::find($service->service_id));
             $prices = PricesCategories::leftjoin('moneys as M', 'prices_categories.money_id', '=', 'M.id')
                 ->where('prices_categories.service_id', $service['service_id'])
                 ->get(['M.money_name', 'M.abreviation', 'prices_categories.*']);
@@ -665,13 +727,7 @@ class ServicesControllerController extends Controller
         $service=ServicesController::leftjoin('categories_services_controllers as C', 'services_controllers.category_id','=','C.id')
         ->leftjoin('unit_of_measure_controllers as U','services_controllers.uom_id','=','U.id')
         ->where('services_controllers.id', '=', $servicesController->id)
-        ->get(['C.name as category_name','U.name as uom_name','U.symbol as uom_symbol','services_controllers.*'])[0];
-        // foreach ($prices as $value) {
-        //     if($value['principal']==1){
-        //         $service['price']=$value['price'];
-        //     }
-        // }
-        
+        ->get(['C.name as category_name','U.name as uom_name','U.symbol as uom_symbol','services_controllers.*'])[0];  
         
         return ['service'=>$service,'prices'=>$prices];
     }

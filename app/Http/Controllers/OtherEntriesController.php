@@ -68,6 +68,10 @@ class OtherEntriesController extends Controller
             $defaultmoney=$this->defaultmoney($request['enterprise_id']);
             $request['money_id']=$defaultmoney['id'];
         }
+
+        if(!$request['done_at']){
+            $request['done_at']=date('Y-m-d');
+        }
         return $this->show(OtherEntries::create($request->all()));
     }
 

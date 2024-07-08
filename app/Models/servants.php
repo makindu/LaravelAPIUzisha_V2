@@ -16,6 +16,7 @@ class servants extends Model
        'email',
        'address',
        'user_id',
-       'enterprise_id', 
+       'enterprise_id',
+       'percentage' 
     ];
 }

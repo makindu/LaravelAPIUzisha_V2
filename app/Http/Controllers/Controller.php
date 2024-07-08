@@ -9,6 +9,7 @@ use App\Models\Invoices;
 use Illuminate\Support\Str;
 use App\Models\PricesCategories;
 use App\Models\ServicesController;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Routing\Controller as BaseController;
@@ -79,15 +80,18 @@ class Controller extends BaseController
 
     public function getUuId($criteria1,$criteria2){
        
-        return $criteria1.date('Ymd').'.'.date('his').'.'.$criteria2.date('sh');
+        return $criteria1.date('Y').'.'.date('his').'.'.$criteria2.date('sh');
     }
     
     public function getinvoiceUuid($EseId){
-       $lastinvoice=Invoices::orderBy('id','desc')->first();
+        $lastinvoice= DB::table('invoices')->latest('created_at')->first();
        if($lastinvoice){
-        $newinvoicenumber='F'.date('Ymd').'C'.$lastinvoice['id']+1;
+        return ;
+        $newinvoicenumber='F'.Carbon::now()->format('YmdHis').'C'.$lastinvoice['id']+1+$EseId;
        }
-       $newinvoicenumber='F'.date('Ymd').'C'.'1';
+       else{
+        $newinvoicenumber='F'.Carbon::now()->format('YmdHis').'C'.$EseId;
+       }
        
         return $newinvoicenumber;
     }

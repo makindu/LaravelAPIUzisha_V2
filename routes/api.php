@@ -77,7 +77,7 @@ use App\Http\Controllers\DecisionChiefdepartmentsController;
 use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
-
+use App\Http\Controllers\ReservationsController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -107,6 +107,13 @@ Route::post('/users/dashboard/{id}',[UsersController::class,'dashboardBasedDateO
 Route::post('/users/makeassuperadmin',[UsersController::class,'makeassuperadmin']);
 Route::post('/users/resetpassword',[UsersController::class,'ifexistsemailadress']);
 
+
+//reservations
+Route::apiResource('/reservations',ReservationsController::class);
+Route::get('/reservations/enterprise/{enterprise_id}',[ReservationsController::class,'index']);
+Route::post('/reservations/filtered',[ReservationsController::class,'reservationsfilter']);
+Route::post('/reservations/search',[ReservationsController::class,'searchreservations']);
+Route::post('/reservations/changestatus',[ReservationsController::class,'changestatus']);
 
 //connection or login
 Route::post('/users/login',[UsersController::class,'login']);
@@ -310,6 +317,7 @@ Route::patch('/categoriesServices/update/{id}',[CategoriesServicesControllerCont
 
 Route::apiResource('services',ServicesControllerController::class);
 Route::get('/services/enterprise/{enterprise_id}',[ServicesControllerController::class,'index']);
+Route::get('/services/enterprise/subservices/{enterprise_id}',[ServicesControllerController::class,'subserviceslist']);
 Route::post('/services/list',[ServicesControllerController::class,'services_list']);
 Route::get('/services/list/{user_id}',[ServicesControllerController::class,'services_list_paginated']);
 Route::put('/services/update/{id}',[ServicesControllerController::class,'update2']);
@@ -337,6 +345,7 @@ Route::delete('/categoriescustomers/delete/{id}',[CategoriesCustomerControllerCo
 
 Route::apiResource('customers',CustomerControllerController::class);
 Route::get('/customers/enterprise/{id}',[CustomerControllerController::class,'index']);
+Route::get('/anonymous/customers/enterprise/{id}',[CustomerControllerController::class,'anonymous']);
 Route::put('/customers/update/{id}',[CustomerControllerController::class,'update2']);
 Route::patch('/customers/update/{id}',[CustomerControllerController::class,'update2']);
 Route::delete('/customers/delete/{id}',[CustomerControllerController::class,'delete']);
@@ -387,6 +396,8 @@ Route::get('/points/customer/{id}',[PointsController::class,'foracustomer']);
 Route::apiResource('fences',FencesController::class);
 Route::get('/fences/enterprise/{id}',[FencesController::class,'index']);
 Route::post('/fences/dataforfencing/',[FencesController::class,'dataforfencing']);
+Route::post('/fences/dataforfencingbasedondate/',[FencesController::class,'dataforfencingbasedondate']);
+Route::post('/fences/subtotaldataforfencingbasedondate',[FencesController::class,'dataforfencingsumerized']);
 Route::delete('/fences/delete/{id}',[FencesController::class,'delete2']);
 Route::get('/fences/show/{id}',[FencesController::class,'getone']);
 
@@ -400,6 +411,7 @@ Route::get('/invoices/customer/{id}',[InvoicesController::class,'foracustomer'])
 Route::post('/invoices/filteredcustomer',[InvoicesController::class,'forACustomerFiltered']);
 Route::post('/invoices/reportbyuser',[InvoicesController::class,'reportUserSelling']);
 Route::post('/invoices/newreportbyuser',[InvoicesController::class,'reportUserSelling2']);
+Route::post('/invoices/reportfilteredbydatesoperations',[InvoicesController::class,'reportUserSelling2basedondatesoperations']);
 Route::post('/invoices/reportUserSellingwithoutdetails',[InvoicesController::class,'reportUserSellingwithoutdetailsbasedoperationdates']);
 Route::post('/invoices/sellsreportgroupedbydates',[InvoicesController::class,'sellsreportgroupedbydates']);
 Route::post('/invoices/reportUserSelling2filteredbytva',[InvoicesController::class,'reportUserSelling2filteredbytva']);
@@ -415,6 +427,7 @@ Route::apiResource('invoicedetails',InvoiceDetailsController::class);
 
 Route::apiResource('debts',DebtsController::class);
 Route::get('/debts/enterprise/{enterprise_id}',[DebtsController::class,'index']);
+Route::post('/debts/searchingbyidoruuid',[DebtsController::class,'searchingbyidoruuid']);
 Route::post('/reports/credits',[DebtsController::class,'debtsgroupedbycustomerbasedodateoperation']);
 Route::post('/reports/credits/debtsfilteredbycriteria',[DebtsController::class,'debtsfilteredbycriteria']);
 Route::post('/debts/customer',[DebtsController::class,'compteCourant']);
@@ -494,6 +507,8 @@ Route::post('/reports/invoices/reportbyarticlesbasedondateoperation',[InvoicesCo
 Route::post('/reports/invoices/reportbydepositsarticlesbasedonoperation',[InvoicesController::class,'reportbydepositsarticlesbasedondateoperation']);
 Route::post('/reports/invoices/reportbyagentsbasedondateoperations',[InvoicesController::class,'reportbyagentsbasedondateoperations']);
 Route::post('/reports/invoices/creditsByCutomersbasedondate',[DebtsController::class,'creditsByCutomersbasedondate']);
+Route::post('/reports/invoices/paymentsbycutomersbasedondate',[DebtPaymentsController::class,'paymentsbycutomersbasedondate']);
+Route::post('/reports/invoices/reportpaymentsbydates',[DebtPaymentsController::class,'reportpaymentsbydates']);
 Route::post('/reports/invoices/groupreportbyprices',[InvoicesController::class,'groupreportbyprices']);
 
 /**
@@ -615,10 +630,12 @@ Route::get('/services/search/enterprise/{enterprise_id}',[ServicesControllerCont
 Route::post('/services/searchbyword/enterprise',[ServicesControllerController::class,'searchinarticlesbyname']);
 Route::post('/services/searchbycodebar/enterprise',[ServicesControllerController::class,'searchbycodebar']);
 Route::post('/services/updateAll',[ServicesControllerController::class,'updateallservices']);
+Route::post('/services/availablesunavailablesservices',[ServicesControllerController::class,'availablesunavailablesservices']);
 
 //DEPOSIT AND SERVICES
 Route::post('/deposit/services/searchbywords',[ServicesControllerController::class,'searchinarticlesdeposit']);
 Route::post('/deposit/services/searchbybarcode',[ServicesControllerController::class,'searchinarticlesbybarcode']);
+Route::post('/deposit/services/searchbycategorieandeposit',[ServicesControllerController::class,'searchbycategorieandeposit']);
 
 //CUSTOMERS
 Route::get('/customers/search/enterprise/{id}',[CustomerControllerController::class,'search']);

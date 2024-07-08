@@ -13,9 +13,15 @@ use App\Http\Requests\StoresafeguardRequest;
 use App\Http\Requests\StoreStockHistoryControllerRequest;
 use App\Http\Requests\UpdatesafeguardRequest;
 use App\Models\CustomerController;
+use App\Models\DebtPayments;
+use App\Models\Debts;
+use App\Models\DepositServices;
+use App\Models\detailinvoicesubservices;
 use App\Models\InvoiceDetails;
 use App\Models\Invoices;
+use App\Models\StockHistoryController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SafeguardController extends Controller
 {
@@ -124,22 +130,91 @@ class SafeguardController extends Controller
     
                     try {
                         $e['invoice']['sync_status']="1";
+                        if(!isset($e['date_operation']) && empty($e['date_operation'])){
+                            $e['date_operation']=date('Y-m-d');
+                        }
+
                         $invoice=Invoices::create($e['invoice']);
                         //enregistrement des details
                         if(isset($e['details'])){
                         
                             foreach ($e['details'] as $detail) {
+
                                 $detail['invoice_id']=$invoice['id'];
                                 $detail['total']=$detail['quantity']*$detail['price'];
                                 try {
                                     $detail['sync_status']=true;
+                                    $detail['date_operation']=$invoice['date_operation'];
                                     InvoiceDetails::create($detail);
+                                    if(isset($detail['type_service']) && $detail['type_service']=='1'){
+                                        $stockbefore=DepositServices::where('deposit_id','=',$detail['deposit_id'])->where('service_id','=',$detail['service_id'])->get()[0];
+                                        DB::update('update deposit_services set available_qte = available_qte - ? where service_id = ? and deposit_id = ?',[$detail['quantity'],$detail['service_id'],$detail['deposit_id']]);
+                                        StockHistoryController::create([
+                                            'service_id'=>$detail['service_id'],
+                                            'user_id'=>$invoice['edited_by_id'],
+                                            'invoice_id'=>$invoice['id'],
+                                            'quantity'=>$detail['quantity'],
+                                            'price'=>$detail['price'],
+                                            'type'=>'withdraw',
+                                            'type_approvement'=>$invoice['type_facture'],
+                                            'enterprise_id'=>$invoice['enterprise_id'],
+                                            'motif'=>'vente',
+                                            'done_at'=>$invoice['date_operation'],
+                                            'date_operation'=>$invoice['date_operation'],
+                                            'uuid'=>$this->getUuId('C','ST'),
+                                            'depot_id'=>$detail['deposit_id'],
+                                            'quantity_before'=>$stockbefore->available_qte,
+                                        ]);
+                                    } 
                                     
+                                       //if detail has subservices(accomp)
+                                        if(isset($detail['subservices']) && count($detail['subservices'])>0){
+                                            foreach ($detail['subservices'] as $accomp) {
+                                                detailinvoicesubservices::create([
+                                                    'service_id'=>$accomp['service_id'],
+                                                    'detail_invoice_id'=>$detail['id'],
+                                                    'invoice_id'=>$invoice['id'],
+                                                    'quantity'=>$accomp['quantity'],
+                                                    'price'=>$accomp['price'],
+                                                    'total'=>$accomp['quantity']*$accomp['price'],
+                                                    'note'=>$accomp['note']
+                                                ]);
+                                            }
+                                        }
                                 } catch (\Throwable $th) {
                                     //throw $th;
                                 }
                             }
                         }
+
+                                  //check if debt
+                            if($invoice['type_facture']=='credit'){
+                                if($invoice['customer_id']>0){
+                                    $debt=Debts::create([
+                                        'created_by_id'=>$invoice['edited_by_id'],
+                                        'customer_id'=>$invoice['customer_id'],
+                                        'invoice_id'=>$invoice['id'],
+                                        'status'=>'0',
+                                        'amount'=>$invoice['netToPay']-$invoice['amount_paid'],
+                                        'sold'=>$invoice['netToPay']-$invoice['amount_paid'],
+                                        'uuid'=>$this->getUuId('D','C'),
+                                        'sync_status'=>'1',
+                                        'done_at'=>$invoice['date_operation']
+                                    ]);
+
+                                    //if there is amount paid creating a payment
+                                    if ($invoice['amount_paid']>0) {
+                                        DebtPayments::create([
+                                            'done_by_id'=>$invoice['edited_by_id'],
+                                            'debt_id'=>$debt['id'],
+                                            'amount_payed'=>$invoice['amount_paid'],
+                                            'uuid'=>$this->getUuId('P','C'),
+                                            'done_at'=>$invoice['date_operation']
+                                        ]);
+                                    } 
+                                }
+                            }                       
+                   
                     } catch (\Throwable $th) {
                         //throw $th;
                     }

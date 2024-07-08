@@ -95,6 +95,138 @@ class FencesController extends Controller
             $message="data_no_conform";
             return ['message'=>$message,'fence'=>$fence];
         }
+    }    
+    
+    /**
+     * getting data for fencing based on date operation
+     */
+    public function dataforfencingbasedondate(Request $request){
+        $message='';
+        $fence= new stdClass;
+        if(isset($request->date_concerned) && isset($request->user_id) && !empty($request->date_concerned) && !empty($request->user_id)){
+            //test if already fenced?
+            $ifexists=Fences::where('user_id','=',$request->user_id)->where('date_concerned','=',$request->date_concerned)->get();
+            if(count($ifexists)>0){
+                $message="already_fenced";
+                return ['message'=>$message,'fence'=>$fence];
+            }else{
+                $sells=Invoices::whereBetween('date_operation',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('edited_by_id','=',$request->user_id)->get();
+
+                $entries=OtherEntries::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('user_id','=',$request->user_id)->get();
+
+                $payments=DebtPayments::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('done_by_id','=',$request->user_id)->get();
+
+                $expenditures=Expenditures::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('user_id','=',$request->user_id)->get();
+
+                $cautions=Cautions::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('user_id','=',$request->user_id)->get();
+
+                $objet =['sells'=>$sells,'payments'=>$payments,'expenditures'=>$expenditures,'cautions'=>$cautions,'entries'=>$entries];
+                return ['message'=>$message,'fence'=>$objet];
+            }
+        }
+        else if(isset($request->user_id) && !empty($request->user_id) && empty($request->date_concerned)){
+                $date_concerned=date('Y-m-d');
+              //test if already fenced?
+              $ifexists=Fences::where('user_id','=',$request->user_id)->where('date_concerned','=',$date_concerned)->get();
+              if(count($ifexists)>0){
+                  $message="already_fenced";
+                  return ['message'=>$message,'fence'=>$fence];
+              }else{
+                  $sells=Invoices::whereBetween('date_operation',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  // ->where('type_facture','=','cash')->orWhere('type_facture','=','credit')
+                  ->where('edited_by_id','=',$request->user_id)->get();
+
+                  $entries=OtherEntries::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('user_id','=',$request->user_id)->get();
+  
+                  $payments=DebtPayments::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('done_by_id','=',$request->user_id)->get();
+  
+                  $expenditures=Expenditures::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('user_id','=',$request->user_id)->get();
+  
+                  $cautions=Cautions::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('user_id','=',$request->user_id)->get();
+  
+                  $objet =['sells'=>$sells,'payments'=>$payments,'expenditures'=>$expenditures,'cautions'=>$cautions,'entries'=>$entries];
+                  return ['message'=>$message,'fence'=>$objet];
+              }
+        }
+        else{
+            $message="data_no_conform";
+            return ['message'=>$message,'fence'=>$fence];
+        }
+    } 
+
+    /**
+     * getting subtotals data for fencing based on date operation
+     */
+    public function subtotaldataforfencingbasedondate(Request $request){
+        $message='';
+        $fence= new stdClass;
+        if(isset($request->date_concerned) && isset($request->user_id) && !empty($request->date_concerned) && !empty($request->user_id)){
+            //test if already fenced?
+            $ifexists=Fences::where('user_id','=',$request->user_id)->where('date_concerned','=',$request->date_concerned)->get();
+            if(count($ifexists)>0){
+                $message="already_fenced";
+                return ['message'=>$message,'fence'=>$fence];
+            }else{
+                $sells=Invoices::whereBetween('date_operation',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('edited_by_id','=',$request->user_id)->get();
+
+                $entries=OtherEntries::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('user_id','=',$request->user_id)->get();
+
+                $payments=DebtPayments::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('done_by_id','=',$request->user_id)->get();
+
+                $expenditures=Expenditures::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('user_id','=',$request->user_id)->get();
+
+                $cautions=Cautions::whereBetween('done_at',[$request->date_concerned.' 00:00:00',$request->date_concerned.' 23:59:59'])
+                ->where('user_id','=',$request->user_id)->get();
+
+                $objet =['sells'=>$sells->sum('netToPay'),'payments'=>$payments->sum('amount_payed'),'expenditures'=>$expenditures->sum('amount'),'cautions'=>$cautions->sum('amount'),'entries'=>$entries->sum('amount')];
+                return ['message'=>$message,'fence'=>$objet];
+            }
+        }
+        else if(isset($request->user_id) && !empty($request->user_id) && empty($request->date_concerned)){
+                $date_concerned=date('Y-m-d');
+              //test if already fenced?
+              $ifexists=Fences::where('user_id','=',$request->user_id)->where('date_concerned','=',$date_concerned)->get();
+              if(count($ifexists)>0){
+                  $message="already_fenced";
+                  return ['message'=>$message,'fence'=>$fence];
+              }else{
+                  $sells=Invoices::whereBetween('date_operation',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  // ->where('type_facture','=','cash')->orWhere('type_facture','=','credit')
+                  ->where('edited_by_id','=',$request->user_id)->get();
+
+                  $entries=OtherEntries::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('user_id','=',$request->user_id)->get();
+  
+                  $payments=DebtPayments::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('done_by_id','=',$request->user_id)->get();
+  
+                  $expenditures=Expenditures::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('user_id','=',$request->user_id)->get();
+  
+                  $cautions=Cautions::whereBetween('done_at',[$date_concerned.' 00:00:00',$date_concerned.' 23:59:59'])
+                  ->where('user_id','=',$request->user_id)->get();
+  
+                  $objet =['sells'=>$sells->sum('netToPay'),'payments'=>$payments->sum('amount_payed'),'expenditures'=>$expenditures->sum('amount'),'cautions'=>$cautions->sum('amount'),'entries'=>$entries->sum('amount')];
+                  return ['message'=>$message,'fence'=>$objet];
+              }
+        }
+        else{
+            $message="data_no_conform";
+            return ['message'=>$message,'fence'=>$fence];
+        }
     }   
     
     /**

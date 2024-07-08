@@ -116,18 +116,36 @@ class EnterprisesController extends Controller
                 'user_id'=>$new->user_id,
                 'pos_id'=>$pos->id
             ]);
-
+            if (isset ($request['defaultmoney']) && !empty($request['defaultmoney'])) {
+                switch ($request['defaultmoney']=='CDF') {
+                    case 'CDF':
+                        $principalcdf=1;
+                        $principalusd=0;
+                        break;
+                    case 'USD':
+                        $principalusd=1;
+                        $principalcdf=0;
+                        break;
+                    default:
+                        $principalusd=1;
+                        $principalcdf=0;
+                        break;
+                }  
+            }else{
+                $principalusd=1;
+                $principalcdf=0;
+            }
             //Creating default moneys (CDF & USD)
             $cdf=moneys::create([
                 'abreviation'=>'CDF',
-                'principal'=>0,
+                'principal'=>$principalcdf,
                 'money_name'=>'Francs Congolais',
                 'enterprise_id'=>$new->id
             ]);
             $usd=moneys::create([
                 'abreviation'=>'USD',
-                'principal'=>1,
-                'money_name'=>'Dollars Americains',
+                'principal'=>$principalusd,
+                'money_name'=>'Dollars Américains',
                 'enterprise_id'=>$new->id
             ]);
 

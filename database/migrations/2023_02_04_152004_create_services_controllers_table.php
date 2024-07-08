@@ -25,6 +25,8 @@ class CreateServicesControllersTable extends Migration
             $table->string('codebar')->nullable();
             $table->string('code_manuel')->nullable();
             $table->string('photo')->nullable();
+            $table->string('status')->nullable()->default('available');
+            $table->string('service_usage')->nullable()->default('selling');
             $table->double('point')->nullable();
             $table->double('nbrgros')->nullable();
             $table->boolean('bonus_applicable')->nullable();

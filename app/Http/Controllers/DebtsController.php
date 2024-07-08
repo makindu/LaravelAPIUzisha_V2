@@ -28,6 +28,24 @@ class DebtsController extends Controller
         return $listdata;
     }
 
+    /**
+     * looking debt by invoice uui or id
+     */
+    public function searchingbyidoruuid(Request $request){
+
+        $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
+                ->where('I.type_facture','=','credit')
+                ->where('I.enterprise_id','=',$request['enterprise_id'])
+                ->where('I.id','=',$request['keyword'])
+                ->orWhere('I.uuid','=',$request['keyword'])
+                ->orWhere('debts.uuid','=',$request['keyword'])
+                ->get(['debts.*']));
+        $listdata=$list->map(function ($item,$key){
+            return $this->show($item);
+        });
+        return $listdata;
+    }
+
      /**
       * report credits by customers
       */
