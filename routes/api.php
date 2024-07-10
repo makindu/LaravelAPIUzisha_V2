@@ -299,6 +299,7 @@ Route::get('/transfertstock/enterprise/{id}',[TransfertstockController::class,'i
 Route::post('/transfertstock/validation',[TransfertstockController::class,'validation']);
 Route::post('/transfertstock/cancel',[TransfertstockController::class,'canceling']);
 Route::post('/transfertstock/status',[TransfertstockController::class,'statusChange']);
+Route::post('/transfertstock/forauser',[TransfertstockController::class,'transfertforspecificUser']);
 
 //request approvments
 Route::apiResource('requestapprovments',RequestapprovmentsController::class);

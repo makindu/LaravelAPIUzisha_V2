@@ -8,6 +8,8 @@ use App\Models\DepositServices;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoretransfertstockRequest;
 use App\Http\Requests\UpdatetransfertstockRequest;
+use App\Models\DepositController;
+use App\Models\DepositsUsers;
 use App\Models\StockHistoryController;
 use Illuminate\Http\JsonResponse;
 
@@ -46,6 +48,7 @@ class TransfertstockController extends Controller
      */
     public function store(StoretransfertstockRequest $request)
     {  $request['uuid']=$this->getUuId('C','T').$request['id'];
+        $request['status']='pending';
         return $this->show(transfertstock::create($request->all()));
     }
 
@@ -123,6 +126,35 @@ class TransfertstockController extends Controller
        }
 
        return $this->show(transfertstock::find($request->id));
+    }
+
+
+    /**
+     * For a specific users.. where he's affected
+     */
+    public function transfertforspecificUser(Request $request){
+        $transferts=[];
+        $deposits=[];
+        $user=$this->getinfosuser($request['user_id']);
+        $enterprise=$this->getEse($user['id']);
+        if ($user['user_type']=='super_admin') {
+            $deposits=DepositController::where('enterprise_id','=',$enterprise['id'])->get();
+        } else {
+            $deposits=DepositsUsers::join('deposit_controllers as D','deposits_users.deposit_id','=','D.id')->where('deposits_users.user_id','=',$request->user_id)->get('D.*');
+        }
+
+        $deposits=$deposits->pluck('id')->toArray();
+
+        if (count($deposits)>0) {
+            //getting services for all transferts
+            $transferts=collect(transfertstock::whereBetween('deposit_sender_id',$deposits)
+            ->orWhereBetween('deposit_receiver_id',$deposits)->get());
+            $transferts->transform(function ($item){
+                return $item=$this->show($item);
+            });
+        }
+        
+        return $transferts; 
     }
 
     /**

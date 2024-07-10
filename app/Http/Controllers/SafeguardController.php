@@ -19,6 +19,7 @@ use App\Models\DepositServices;
 use App\Models\detailinvoicesubservices;
 use App\Models\InvoiceDetails;
 use App\Models\Invoices;
+use App\Models\ServicesController;
 use App\Models\StockHistoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -87,7 +88,7 @@ class SafeguardController extends Controller
 
         //invoices treatment
         $invoices=[];
-        $invoices=$this->invoicesSafeguard(new Request(["invoices"=>$request['invoices'],"user_id"=>$request['user_id']]));
+        $invoices=$this->invoicesSafeguard(new Request(["invoices"=>$request['invoices'],"user_id"=>$request['user_id']]))->original;
 
         //debts treatment
         $debts=[];
@@ -104,7 +105,7 @@ class SafeguardController extends Controller
         foreach ($request['payments'] as $value) {
             $newrequest = new StoreDebtPaymentsRequest($value);
             $newrequest['type']='safeguard';
-            array_push($debts,$paymentCtrl->store($newrequest));
+            array_push($payments,$paymentCtrl->store($newrequest));
         }
 
         return ['entries'=>$entries,'expenditures'=>$expenditures,'customers'=>$customers,'stockhistories'=>$stockhistories,'invoices'=>$invoices,'payments'=>$payments,'debts'=>$debts];
@@ -142,6 +143,10 @@ class SafeguardController extends Controller
 
                                 $detail['invoice_id']=$invoice['id'];
                                 $detail['total']=$detail['quantity']*$detail['price'];
+                                $type=ServicesController::find($detail['service_id']);
+                                if ($type) {
+                                    $detail['type_service']=$type['type'];
+                                }
                                 try {
                                     $detail['sync_status']=true;
                                     $detail['date_operation']=$invoice['date_operation'];
@@ -188,32 +193,32 @@ class SafeguardController extends Controller
                         }
 
                                   //check if debt
-                            if($invoice['type_facture']=='credit'){
-                                if($invoice['customer_id']>0){
-                                    $debt=Debts::create([
-                                        'created_by_id'=>$invoice['edited_by_id'],
-                                        'customer_id'=>$invoice['customer_id'],
-                                        'invoice_id'=>$invoice['id'],
-                                        'status'=>'0',
-                                        'amount'=>$invoice['netToPay']-$invoice['amount_paid'],
-                                        'sold'=>$invoice['netToPay']-$invoice['amount_paid'],
-                                        'uuid'=>$this->getUuId('D','C'),
-                                        'sync_status'=>'1',
-                                        'done_at'=>$invoice['date_operation']
-                                    ]);
+                            // if($invoice['type_facture']=='credit'){
+                            //     if($invoice['customer_id']>0){
+                            //         $debt=Debts::create([
+                            //             'created_by_id'=>$invoice['edited_by_id'],
+                            //             'customer_id'=>$invoice['customer_id'],
+                            //             'invoice_id'=>$invoice['id'],
+                            //             'status'=>'0',
+                            //             'amount'=>$invoice['netToPay']-$invoice['amount_paid'],
+                            //             'sold'=>$invoice['netToPay']-$invoice['amount_paid'],
+                            //             'uuid'=>$this->getUuId('D','C'),
+                            //             'sync_status'=>'1',
+                            //             'done_at'=>$invoice['date_operation']
+                            //         ]);
 
-                                    //if there is amount paid creating a payment
-                                    if ($invoice['amount_paid']>0) {
-                                        DebtPayments::create([
-                                            'done_by_id'=>$invoice['edited_by_id'],
-                                            'debt_id'=>$debt['id'],
-                                            'amount_payed'=>$invoice['amount_paid'],
-                                            'uuid'=>$this->getUuId('P','C'),
-                                            'done_at'=>$invoice['date_operation']
-                                        ]);
-                                    } 
-                                }
-                            }                       
+                            //         //if there is amount paid creating a payment
+                            //         if ($invoice['amount_paid']>0) {
+                            //             DebtPayments::create([
+                            //                 'done_by_id'=>$invoice['edited_by_id'],
+                            //                 'debt_id'=>$debt['id'],
+                            //                 'amount_payed'=>$invoice['amount_paid'],
+                            //                 'uuid'=>$this->getUuId('P','C'),
+                            //                 'done_at'=>$invoice['date_operation']
+                            //             ]);
+                            //         } 
+                            //     }
+                            // }                       
                    
                     } catch (\Throwable $th) {
                         //throw $th;

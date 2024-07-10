@@ -1620,6 +1620,7 @@ class InvoicesController extends Controller
         });
         return $listdata;
     }
+
     /**
      * Show the form for creating a new resource.
      *

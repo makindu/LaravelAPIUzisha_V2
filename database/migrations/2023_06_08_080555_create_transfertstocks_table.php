@@ -34,12 +34,13 @@ class CreateTransfertstocksTable extends Migration
 
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises');
-            $table->string('status')->nullable();
+            $table->string('status')->nullable()->default('pending');
             $table->integer('validate_by')->nullable();
             $table->string('validate')->nullable();
             $table->string('uuid')->nullable();
             $table->date('validate_at')->nullable();
             $table->date('received_at')->nullable();
+            $table->date('done_at')->nullable();
             $table->timestamps();
         });
     }

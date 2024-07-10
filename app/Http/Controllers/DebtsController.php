@@ -431,7 +431,7 @@ class DebtsController extends Controller
             $request['uuid']=$request['debt']['uuid'];
             $request['sync_status']=1;
             $request['status']='0';
-            Debts::create($request->all());
+           return  Debts::create($request->all());
         }else{
            return Debts::create($request->all());   
         }

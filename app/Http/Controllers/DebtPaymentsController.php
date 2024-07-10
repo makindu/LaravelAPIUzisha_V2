@@ -10,6 +10,7 @@ use App\Http\Requests\StoreDebtPaymentsRequest;
 use App\Http\Requests\UpdateDebtPaymentsRequest;
 use App\Models\CustomerController;
 use Illuminate\Http\Request;
+use stdClass;
 
 class DebtPaymentsController extends Controller
 {
@@ -46,6 +47,7 @@ class DebtPaymentsController extends Controller
     public function store(StoreDebtPaymentsRequest $request)
     {
         if ($request['type']=="safeguard") {
+            $newpayment = new stdClass;
             if(!$request['done_at']){
                 if (isset($request['created_at'])) {
                     $request['done_at']=$request['created_at'];
@@ -61,12 +63,19 @@ class DebtPaymentsController extends Controller
             ->get()->first();
 
             if ($payments['totalpayed']<$debt['amount']) {
-                DebtPayments::create($request->all());
+                $newpayment=DebtPayments::create($request->all());
                 $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
                 ->where('debt_id','=',$debt['id'])
                 ->get()->first();
                 DB::update('update debts set sold = amount - ? where id = ?',[$payments['totalpayed'],$debt['id']]);
             }
+
+            if ($newpayment) {
+                return $this->show($newpayment);
+            }else{
+                return $newpayment;
+            }
+            
         }else{
 
             if(!$request['done_at']){

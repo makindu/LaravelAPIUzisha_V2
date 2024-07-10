@@ -26,5 +26,6 @@ class transfertstock extends Model
         'validate_at',
         'received_at',
         'uuid',
+        'done_at'
     ];
 }
