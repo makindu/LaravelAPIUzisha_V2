@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\DB;
 use App\Models\StockHistoryController;
 use App\Http\Requests\StoreInvoicesRequest;
 use App\Http\Requests\UpdateInvoicesRequest;
+use App\Models\Bonus;
 use App\Models\CustomerController;
 use App\Models\customerspointshistory;
 use App\Models\DepositController;
 use App\Models\DepositServices;
 use App\Models\detailinvoicesubservices;
 use App\Models\DetailsInvoicesStatus;
+use App\Models\Enterprises;
 use App\Models\Expenditures;
 use App\Models\invoicesdetailscolors;
 use App\Models\invoicesdetailsdefects;
@@ -1653,7 +1655,7 @@ class InvoicesController extends Controller
         $Ese=$this->getEse($request['edited_by_id']);
         if($User && $Ese){
             if($this->isactivatedEse($Ese['id'])){
-                return $this->saveInvoice($request);
+                return $this->saveInvoiceWithBonusCalculation($request);
             }else{
                 //count numbers of invoices done
                 $sumInvoices =Invoices::select(DB::raw('count(*) as number'))->where('enterprise_id','=',$Ese['id'])->get('number')->first();
@@ -1663,7 +1665,7 @@ class InvoicesController extends Controller
                         'message'=>'invoices number exceeded'
                     ]);
                 }else{
-                    return $this->saveInvoice($request);
+                    return $this->saveInvoiceWithBonusCalculation($request);
                 }
             }
         }else{
@@ -1672,6 +1674,234 @@ class InvoicesController extends Controller
                 'message'=>'user unknown'
             ]); 
         }
+    }
+
+    public function saveInvoiceWithBonusCalculation(StoreInvoicesRequest $request){
+           // return $request;
+           $request['uuid']=$this->getUuId("F","C");
+           if(!isset($request['date_operation']) && empty($request['date_operation'])){
+               $request['date_operation']=date('Y-m-d');
+           }
+
+           $invoice=Invoices::create($request->all());
+           $ese=$this->getEse($request['edited_by_id']);
+           $fidelitymode=$ese['fidelitydefaultmode'];
+
+           //enregistrement des details
+           if(isset($request->details)){
+
+               foreach ($request->details as $detail) {
+                   $detail['invoice_id']=$invoice['id'];
+                   $detail['total']=$detail['quantity']*$detail['price'];
+                   $detail['point']=ServicesController::find($detail['service_id'])['point'];
+                   $newdetail=InvoiceDetails::create($detail);
+                   if((isset($request->type_facture) && $request->type_facture=='cash') || (isset($request->type_facture) && $request->type_facture=='credit') )
+                   {
+                       if(isset($detail['type_service']) && $detail['type_service']=='1'){
+                           $stockbefore=DepositServices::where('deposit_id','=',$detail['deposit_id'])->where('service_id','=',$detail['service_id'])->get()[0];
+                           DB::update('update deposit_services set available_qte = available_qte - ? where service_id = ? and deposit_id = ?',[$detail['quantity'],$detail['service_id'],$detail['deposit_id']]);
+                           StockHistoryController::create([
+                               'service_id'=>$detail['service_id'],
+                               'user_id'=>$invoice['edited_by_id'],
+                               'invoice_id'=>$invoice['id'],
+                               'quantity'=>$detail['quantity'],
+                               'price'=>$detail['price'],
+                               'type'=>'withdraw',
+                               'type_approvement'=>$invoice['type_facture'],
+                               'enterprise_id'=>$request['enterprise_id'],
+                               'motif'=>'vente',
+                               'done_at'=>$invoice['date_operation'],
+                               'date_operation'=>$invoice['date_operation'],
+                               'uuid'=>$this->getUuId('C','ST'),
+                               'depot_id'=>$detail['deposit_id'],
+                               'quantity_before'=>$stockbefore->available_qte,
+                           ]);
+                       }
+                   }
+                   //if detail has subservices(accomp)
+                   if(isset($detail['subservices']) && count($detail['subservices'])>0){
+                       foreach ($detail['subservices'] as $accomp) {
+                           detailinvoicesubservices::create([
+                               'service_id'=>$accomp['service_id'],
+                               'detail_invoice_id'=>$newdetail['id'],
+                               'invoice_id'=>$invoice['id'],
+                               'quantity'=>$accomp['quantity'],
+                               'price'=>$accomp['price'],
+                               'total'=>$accomp['quantity']*$accomp['price'],
+                               'note'=>$accomp['note']
+                           ]);
+                       }
+                   }
+               }
+           }
+
+
+
+           if($invoice['type_facture']=='point' &&  $invoice['customer_id']>0){
+               $count=$invoice['netToPay'];
+               $constant=5;
+               $point=$count/$constant;
+
+               $customer=CustomerController::find($invoice['customer_id']);
+
+               $customerupdated=DB::update('update customer_controllers set totalpoints = totalpoints - ? where id = ?',[$point,$customer['id']]);
+           }
+
+           if($fidelitymode=='point' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
+               $count=$invoice['netToPay'];
+               $constant=5;
+               if($count>=$constant){
+
+                       $customer=CustomerController::find($invoice['customer_id']);
+                       $point=($count/$constant);
+                       // number_format();
+                       $customerupdated=DB::update('update customer_controllers set totalpoints = totalpoints + ? where id = ?',[$point,$customer['id']]);
+                       if($customerupdated){
+                            //creating fidelity history ligne
+                            customerspointshistory::create([
+                                'customer_id'=>$customer['id'],
+                                'invoice_id'=>$invoice['id'],
+                                'point'=>$point,
+                                'type'=>'point',
+                                'value'=>$ese['fidelitypointvalue']*$point,
+                                'used'=>false,
+                                'done_at'=>$invoice['date_operation']
+                            ]);
+                       }
+               }
+           }
+
+           if($fidelitymode=='bonus' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
+             //put the code behind this bonus's logic
+           //   totalbonus
+
+           // $bonus =0;
+           
+           // $customer->update(['totalbonus'=>$bonus]);
+           $customer= CustomerController::find($invoice['customer_id']);
+           $countService =0;
+           $initvaluefidelity = Enterprises::find($request['enterprise_id'])->initvaluefidelity;
+           if(isset($request->details)){
+
+               DB::beginTransaction();
+               try {
+
+               foreach ($request->details as $detail) {
+                   $detail['invoice_id']=$invoice['id'];
+                   $countService =0; //toujours init countservice ici
+                   if((isset($request->type_facture) && $request->type_facture=='cash')  )
+                   {
+                       // || (isset($request->type_facture) && $request->type_facture=='credit')
+                       if(isset($detail['type_service']) && $detail['type_service']=='1'){
+
+                           $lastbonusInvoice = Bonus::where('customer_id',$invoice['customer_id'] )
+                                                       ->where('service_id', $detail['service_id'])
+                                                       ->orderBy('id', 'desc')
+                                                       ->first()
+                                                       ;
+                           // ici on recupere toutes les quantites de ces articles dependant de customer id et de service id
+                           // ensuite on va additionner les quantites
+                           if ($lastbonusInvoice) {
+                               $invoiceCustomer = InvoiceDetails::join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
+                                                                   ->where('invoice_id', '>', $lastbonusInvoice->invoice_id)
+                                                                   ->where('invoice_details.service_id', $detail['service_id'])
+                                                                   ->where('invoices.customer_id', $invoice['customer_id'])
+                                                                   ->where('invoices.type_facture', 'cash')
+                                                                   ->get();
+
+                           } else {
+                           
+                               $invoiceCustomer = InvoiceDetails::join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
+                                                                   ->where('invoice_details.service_id', $detail['service_id'])
+                                                                    ->where('invoices.customer_id', $invoice['customer_id'])
+                                                                    ->where('invoices.type_facture', 'cash')
+                                                                   ->get();
+                                                                   
+                           }
+                           if($invoiceCustomer->count()>0){
+                               foreach ($invoiceCustomer as $detail_invoice) {
+                                   // tester ici s il a paye cash
+                                   //faudra tester si price*quantity == total????
+                                   $countService += $detail_invoice->quantity;
+                               }
+                               
+                               if($countService >= $initvaluefidelity && $initvaluefidelity!=null){
+                                // return "user_id".$request['edited_by_id'];
+                                   Bonus::create([
+                                       'customer_id'=>$invoice['customer_id'],
+                                       'service_id'=>$detail['service_id'],
+                                           'amount'=>$detail['price'],
+                                           'amount_used'=>0,
+                                           'rate'=>0,
+                                           'nb_sales'=>$countService,
+                                           'enterprise_id'=>$request['enterprise_id'],
+                                           'invoice_id'=> $invoice->id,
+                                           'user_id'=>$request['edited_by_id']
+                                   ]);
+                                   $customer->update(['totalbonus'=> $customer->totalbonus +$detail['price']]);
+                                //    return  response()->JSON('data ');
+                                //    $bonuses = Bonus::where('customer_id',$invoice['customer_id']) ->where('service_id',$detail['service_id'])->get();
+                                //    foreach ($bonuses as $bonus) {
+                                //        $bonus->update(['invoice_id',$invoice->id ]);
+                                //    }
+
+                               }
+                           }
+                           
+
+                       }
+                   }
+
+
+               }
+               DB::commit();
+               } catch (\Throwable $th) {
+
+               DB::rollBack();
+               return "Error ".$th;
+                                       //throw $th;
+               }
+
+
+           }
+           // code ici est obsolete
+           // $enterprise = Enterprises::find($request->enterprise_id);
+           //     if($countService > $enterprise->initValueBonus){
+           //         // logic for Bonus here
+           //         $totalBonus = 0 ; //logic du total bonus change 0 to your value or ration
+           //         $customer->update(['totalbonus'=>$totalBonus]);
+           //        $now = Carbon::now(); //set date idem to the stockhistoryTimeSamp
+           //        $customer->update(['lastbonusdate'=>$now]);
+           //     }
+           }
+
+           //if invoice-type=='caution'
+           if($invoice['type_facture']=='caution' && $invoice['customer_id']>0){
+               //update the customer cautionline
+               DB::update('update customer_controllers set totalcautions = totalcautions - ? where id = ?',[$invoice['netToPay'],$invoice['customer_id']]);
+           }
+
+           //check if debt
+           if($invoice['type_facture']=='credit'){
+               if($invoice['customer_id']>0){
+                   $debt=Debts::create([
+                       'created_by_id'=>$invoice['edited_by_id'],
+                       'customer_id'=>$invoice['customer_id'],
+                       'invoice_id'=>$invoice['id'],
+                       'status'=>'0',
+                       'amount'=>$invoice['netToPay']-$invoice['amount_paid'],
+                       'sold'=>$invoice['netToPay']-$invoice['amount_paid'],
+                       'uuid'=>$this->getUuId('D','C'),
+                       'sync_status'=>'1',
+                       'done_at'=>$invoice['date_operation']
+                   ]);
+               }
+           }
+
+           return response()->json([
+               'data' =>$this->show($invoice),
+               'message'=>'can make invoice'
+           ]);
     }
 
     public function saveInvoice(StoreInvoicesRequest $request){

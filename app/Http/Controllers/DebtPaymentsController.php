@@ -58,22 +58,43 @@ class DebtPaymentsController extends Controller
 
             $debt=Debts::where('uuid','=',$request['debtUuid'])->first();
             $request['debt_id']= $debt['id'];
-            $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
-            ->where('debt_id','=',$debt['id'])
-            ->get()->first();
+            $payments=DebtPayments::where('debt_id','=',$debt['id'])
+            ->get(); 
+            
+           
 
-            if ($payments['totalpayed']<$debt['amount']) {
-                $newpayment=DebtPayments::create($request->all());
-                $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
+            if(count($payments)>0){
+                 $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
                 ->where('debt_id','=',$debt['id'])
                 ->get()->first();
-                DB::update('update debts set sold = amount - ? where id = ?',[$payments['totalpayed'],$debt['id']]);
+                if ($payments['totalpayed']<$debt['amount']) {
+                    $newpayment=DebtPayments::create($request->all());
+                    $payments=DebtPayments::select(DB::raw('sum(amount_payed) as totalpayed'))
+                    ->where('debt_id','=',$debt['id'])
+                    ->get()->first();
+                    DB::update('update debts set sold = amount - ? where id = ?',[$payments['totalpayed'],$debt['id']]);
+                }else{
+                    return response()->json([
+                        "status"=>400,
+                        "data"=>null,
+                        "message"=>"already payed"
+                    ],400);
+                }
+            }else{
+                $newpayment=DebtPayments::create($request->all());
+                DB::update('update debts set sold = amount - ? where id = ?',[$request['amount_payed'],$debt['id']]);
             }
+
+            
 
             if ($newpayment) {
                 return $this->show($newpayment);
             }else{
-                return $newpayment;
+                return response()->json([
+                    "status"=>400,
+                    "data"=>null,
+                    "message"=>"incorrect data"
+                ],400);
             }
             
         }else{
