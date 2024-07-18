@@ -9,28 +9,31 @@ class Enterprises extends Model
 {
     use HasFactory;
     protected $fillable=[
-        'name',	
+        'name',
         'description',
-        'rccm',	
+        'rccm',
         'national_identification',
-        'num_impot',	
+        'num_impot',
         'autorisation_fct',
-        'adresse',	
+        'adresse',
         'phone',
-        'mail',	
+        'mail',
         'website',
         "facebook",
         "instagram",
         "linkdin",
-        'logo',	
-        'category',	   
-        'vat_rate',	
-        'uuid',	
+        'logo',
+        'category',
+        'vat_rate',
+        'uuid',
         'sync_status',
         'user_id',
         'status',
         'invoicefooter',
-        'fidelitypointvalue',	
-        'fidelitydefaultmode'	
+        'fidelitypointvalue',
+        'fidelitydefaultmode',
+        'initvaluefidelity',
+        'date_from_fidelity',
+        'date_to_fidelity'
     ];
 }

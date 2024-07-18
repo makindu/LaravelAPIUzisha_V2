@@ -77,7 +77,7 @@ class TransfertstockController extends Controller
         ->leftjoin('users as UR','transfertstocks.receiver_id','=','UR.id')
         ->leftjoin('services_controllers as S','transfertstocks.service_id','=','S.id')
         ->leftjoin('unit_of_measure_controllers as UM','S.uom_id','=','UM.id')
-        ->where('transfertstocks.id','=',$transfertstock['id'])->get(['transfertstocks.*','UM.name as uom_name','UM.symbol as uom_symbol','S.name as service_name','S.description as service_description','DS.name as deposit_sender_name','DR.name as  deposit_receiver_name','US.user_name as sender_name'])[0];
+        ->where('transfertstocks.id','=',$transfertstock['id'])->get(['transfertstocks.*','UM.name as uom_name','UM.symbol as uom_symbol','S.name as service_name','S.description as service_description','DS.name as deposit_sender_name','DR.name as  deposit_receiver_name','UR.user_name as receiver_name','US.user_name as sender_name'])[0];
     }
 
     public function validation(Request $request){

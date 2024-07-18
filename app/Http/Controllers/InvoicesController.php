@@ -1747,6 +1747,10 @@ class InvoicesController extends Controller
                $customerupdated=DB::update('update customer_controllers set totalpoints = totalpoints - ? where id = ?',[$point,$customer['id']]);
            }
 
+           if($invoice['type_facture']=='bonus' && $invoice['customer_id']>0){
+                //logique pour reduire les bonus du client par ici...
+           }
+
            if($fidelitymode=='point' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
                $count=$invoice['netToPay'];
                $constant=5;
@@ -1772,107 +1776,119 @@ class InvoicesController extends Controller
            }
 
            if($fidelitymode=='bonus' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
-             //put the code behind this bonus's logic
-           //   totalbonus
+                //put the code behind this bonus's logic
+                //   totalbonus
 
-           // $bonus =0;
-           
-           // $customer->update(['totalbonus'=>$bonus]);
-           $customer= CustomerController::find($invoice['customer_id']);
-           $countService =0;
-           $initvaluefidelity = Enterprises::find($request['enterprise_id'])->initvaluefidelity;
-           if(isset($request->details)){
+                // $bonus =0;
 
-               DB::beginTransaction();
-               try {
+                // $customer->update(['totalbonus'=>$bonus]);
+                $customer= CustomerController::find($invoice['customer_id']);
+                $countService =0;
+                $initvalue = Enterprises::find($request['enterprise_id']);
+                $initvaluefidelity = $initvalue->initvaluefidelity;
+                $date_from_fidelity =$initvalue->date_from_fidelity;
+                $date_to_fidelity =$initvalue->date_to_fidelity;
+                if(isset($request->details)){
 
-               foreach ($request->details as $detail) {
-                   $detail['invoice_id']=$invoice['id'];
-                   $countService =0; //toujours init countservice ici
-                   if((isset($request->type_facture) && $request->type_facture=='cash')  )
-                   {
-                       // || (isset($request->type_facture) && $request->type_facture=='credit')
-                       if(isset($detail['type_service']) && $detail['type_service']=='1'){
+                    DB::beginTransaction();
+                    try {
 
-                           $lastbonusInvoice = Bonus::where('customer_id',$invoice['customer_id'] )
-                                                       ->where('service_id', $detail['service_id'])
-                                                       ->orderBy('id', 'desc')
-                                                       ->first()
-                                                       ;
-                           // ici on recupere toutes les quantites de ces articles dependant de customer id et de service id
-                           // ensuite on va additionner les quantites
-                           if ($lastbonusInvoice) {
-                               $invoiceCustomer = InvoiceDetails::join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
-                                                                   ->where('invoice_id', '>', $lastbonusInvoice->invoice_id)
-                                                                   ->where('invoice_details.service_id', $detail['service_id'])
-                                                                   ->where('invoices.customer_id', $invoice['customer_id'])
-                                                                   ->where('invoices.type_facture', 'cash')
-                                                                   ->get();
+                    foreach ($request->details as $detail) {
+                        $detail['invoice_id']=$invoice['id'];
+                        $countService =0; //toujours init countservice ici
+                        if((isset($request->type_facture) && $request->type_facture=='cash')  )
+                        {
+                            // || (isset($request->type_facture) && $request->type_facture=='credit')
+                            if(isset($detail['type_service']) && $detail['type_service']=='1'){
 
-                           } else {
-                           
-                               $invoiceCustomer = InvoiceDetails::join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
-                                                                   ->where('invoice_details.service_id', $detail['service_id'])
-                                                                    ->where('invoices.customer_id', $invoice['customer_id'])
-                                                                    ->where('invoices.type_facture', 'cash')
-                                                                   ->get();
-                                                                   
-                           }
-                           if($invoiceCustomer->count()>0){
-                               foreach ($invoiceCustomer as $detail_invoice) {
-                                   // tester ici s il a paye cash
-                                   //faudra tester si price*quantity == total????
-                                   $countService += $detail_invoice->quantity;
-                               }
-                               
-                               if($countService >= $initvaluefidelity && $initvaluefidelity!=null){
-                                // return "user_id".$request['edited_by_id'];
-                                   Bonus::create([
-                                       'customer_id'=>$invoice['customer_id'],
-                                       'service_id'=>$detail['service_id'],
-                                           'amount'=>$detail['price'],
-                                           'amount_used'=>0,
-                                           'rate'=>0,
-                                           'nb_sales'=>$countService,
-                                           'enterprise_id'=>$request['enterprise_id'],
-                                           'invoice_id'=> $invoice->id,
-                                           'user_id'=>$request['edited_by_id']
-                                   ]);
-                                   $customer->update(['totalbonus'=> $customer->totalbonus +$detail['price']]);
-                                //    return  response()->JSON('data ');
-                                //    $bonuses = Bonus::where('customer_id',$invoice['customer_id']) ->where('service_id',$detail['service_id'])->get();
-                                //    foreach ($bonuses as $bonus) {
-                                //        $bonus->update(['invoice_id',$invoice->id ]);
-                                //    }
+                                $lastbonusInvoice = Bonus::where('customer_id',$invoice['customer_id'] )
+                                                            ->where('service_id', $detail['service_id'])
+                                                            ->orderBy('id', 'desc')
+                                                            ->first();
+                                // ici on recupere toutes les quantites de ces articles dependant de customer id et de service id
+                                // ensuite on va additionner les quantites
+                                if ($lastbonusInvoice) {
+                                    $invoiceCustomer = InvoiceDetails::join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
+                                                                        ->where('invoice_id', '>', $lastbonusInvoice->invoice_id)
+                                                                        ->where('invoice_details.service_id', $detail['service_id'])
+                                                                        ->where('invoices.customer_id', $invoice['customer_id'])
+                                                                        //    ->where('invoices.type_facture', 'cash')
+                                                                            ->where(function ($query) {
+                                                                                $query->where('invoices.type_facture', 'cash')
+                                                                                    ->orWhere('invoices.type_facture', 'bonus');
+                                                                            })
+                                                                        ->whereBetween('invoice_details.created_at',[$date_from_fidelity.' 00:00:00',$date_to_fidelity.' 23:59:59'])
+                                                                        ->get();
 
-                               }
-                           }
-                           
+                                } else {
 
-                       }
-                   }
+                                    $invoiceCustomer = InvoiceDetails::join('invoices', 'invoices.id', '=', 'invoice_details.invoice_id')
+                                                                        ->where('invoice_details.service_id', $detail['service_id'])
+                                                                            ->where('invoices.customer_id', $invoice['customer_id'])
+                                                                            // ->where('invoices.type_facture', 'cash')
+                                                                            ->where(function ($query) {
+                                                                                $query->where('invoices.type_facture', 'cash')
+                                                                                    ->orWhere('invoices.type_facture', 'bonus');
+                                                                            })
+                                                                        ->whereBetween('invoice_details.created_at',[$date_from_fidelity.' 00:00:00',$date_to_fidelity.' 23:59:59'])
+                                                                        ->get();
 
+                                }
+                                if($invoiceCustomer->count()>0){
+                                    foreach ($invoiceCustomer as $detail_invoice) {
+                                        // tester ici s il a paye cash
+                                        //faudra tester si price*quantity == total????
+                                        $countService += $detail_invoice->quantity;
+                                    }
 
-               }
-               DB::commit();
-               } catch (\Throwable $th) {
+                                    if($countService >= $initvaluefidelity && $initvaluefidelity!=null){
+                                        // return "user_id".$request['edited_by_id'];
+                                        Bonus::create([
+                                            'customer_id'=>$invoice['customer_id'],
+                                            'service_id'=>$detail['service_id'],
+                                                'amount'=>$detail['price'],
+                                                'amount_used'=>0,
+                                                'rate'=>0,
+                                                'nb_sales'=>$countService,
+                                                'enterprise_id'=>$request['enterprise_id'],
+                                                'invoice_id'=> $invoice->id,
+                                                'user_id'=>$request['edited_by_id']
+                                        ]);
+                                        $customer->update(['totalbonus'=> $customer->totalbonus +$detail['price']]);
+                                        //    return  response()->JSON('data ');
+                                        //    $bonuses = Bonus::where('customer_id',$invoice['customer_id']) ->where('service_id',$detail['service_id'])->get();
+                                        //    foreach ($bonuses as $bonus) {
+                                        //        $bonus->update(['invoice_id',$invoice->id ]);
+                                        //    }
 
-               DB::rollBack();
-               return "Error ".$th;
-                                       //throw $th;
-               }
+                                    }
+                                }
 
 
-           }
-           // code ici est obsolete
-           // $enterprise = Enterprises::find($request->enterprise_id);
-           //     if($countService > $enterprise->initValueBonus){
-           //         // logic for Bonus here
-           //         $totalBonus = 0 ; //logic du total bonus change 0 to your value or ration
-           //         $customer->update(['totalbonus'=>$totalBonus]);
-           //        $now = Carbon::now(); //set date idem to the stockhistoryTimeSamp
-           //        $customer->update(['lastbonusdate'=>$now]);
-           //     }
+                            }
+                        }
+
+
+                    }
+                    DB::commit();
+                    } catch (\Throwable $th) {
+
+                    DB::rollBack();
+                    return "Error ".$th;
+                                            //throw $th;
+                    }
+
+
+                }
+                // code ici est obsolete
+                // $enterprise = Enterprises::find($request->enterprise_id);
+                //     if($countService > $enterprise->initValueBonus){
+                //         // logic for Bonus here
+                //         $totalBonus = 0 ; //logic du total bonus change 0 to your value or ration
+                //         $customer->update(['totalbonus'=>$totalBonus]);
+                //        $now = Carbon::now(); //set date idem to the stockhistoryTimeSamp
+                //        $customer->update(['lastbonusdate'=>$now]);
+                //     }
            }
 
            //if invoice-type=='caution'
