@@ -1700,7 +1700,8 @@ class InvoicesController extends Controller
                       if(isset($detail['type_service']) && $detail['type_service']=='1'){
                           $stockbefore=DepositServices::where('deposit_id','=',$detail['deposit_id'])->where('service_id','=',$detail['service_id'])->get()[0];
                           DB::update('update deposit_services set available_qte = available_qte - ? where service_id = ? and deposit_id = ?',[$detail['quantity'],$detail['service_id'],$detail['deposit_id']]);
-                          //calcul de l'interet par ici... avant d'enregistrer le stock history
+                          //calcul stock used by FIFO or LIFO method par ici... avant d'enregistrer le stock history
+                          
                           StockHistoryController::create([
                               'service_id'=>$detail['service_id'],
                               'user_id'=>$invoice['edited_by_id'],
