@@ -102,6 +102,8 @@ class StockHistoryControllerController extends Controller
 
         if($request['type']=='entry'){
             DB::update('update deposit_services set available_qte = available_qte + ? where service_id = ? and deposit_id = ?',[$request['quantity'],$request['service_id'],$request['depot_id']]);
+            //calcul de l'interet par ici... avant d'enregistrer le stock history
+            
             return $this->show(StockHistoryController::create($request->all()));
         }else if($request['type']=='withdraw'){
 
