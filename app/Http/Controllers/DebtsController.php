@@ -53,17 +53,17 @@ class DebtsController extends Controller
         $customers=[];
         if(isset($request['from']) && empty($request['to'])){
             $request['to']=$request['from'];
-        } 
-        
+        }
+
         if(empty($request['from']) && isset($request['to'])){
             $request['from']=$request['to'];
         }
-        
+
         if(empty($request['from']) && empty($request['to'])){
             $request['from']=date('Y-m-d');
             $request['to']=date('Y-m-d');
         }
-           
+
         if(isset($request['customers']) && !empty($request['customers'])){
             $customers=collect(CustomerController::whereIn('id',$request['customers'])->get());
             $customers->transform(function ($customer) use ($request){
@@ -96,7 +96,7 @@ class DebtsController extends Controller
                 return $customer;
             });
 
-            
+
         }
         return response()->json([
             "data"=>$customers,
@@ -105,8 +105,8 @@ class DebtsController extends Controller
             "total_general"=>$customers->sum('total'),
             "money"=>$this->defaultmoney($request['enterprise_id'])
         ]);
-      } 
-      
+      }
+
       /**
       * report credits by customers
       */
@@ -114,17 +114,17 @@ class DebtsController extends Controller
         $customers=[];
         if(isset($request['from']) && empty($request['to'])){
             $request['to']=$request['from'];
-        } 
-        
+        }
+
         if(empty($request['from']) && isset($request['to'])){
             $request['from']=$request['to'];
         }
-        
+
         if(empty($request['from']) && empty($request['to'])){
             $request['from']=date('Y-m-d');
             $request['to']=date('Y-m-d');
         }
-           
+
         if(isset($request['customers']) && !empty($request['customers'])){
             $customers=collect(CustomerController::whereIn('id',$request['customers'])->get());
             $customers->transform(function ($customer) use ($request){
@@ -157,7 +157,7 @@ class DebtsController extends Controller
                 return $customer;
             });
 
-            
+
         }
         return response()->json([
             "data"=>$customers,
@@ -167,36 +167,36 @@ class DebtsController extends Controller
             "money"=>$this->defaultmoney($request['enterprise_id'])
         ]);
       }
-   
+
     /**
      * get list of debts grouped by customer
      */
     public function debtsgroupedbycustomer(Request $request){
-        
+
         if(isset($request['from']) && isset($request['to'])==false){
             $request['to']=$request['from'];
-        } 
-        
+        }
+
         if(isset($request['from'])==false && isset($request['to'])){
             $request['from']=$request['to'];
         }
-        
+
         if(isset($request['from'])==false && isset($request['to'])==false){
             $request['from']=date('Y-m-d');
             $request['to']=date('Y-m-d');
         }
-           
-    
+
+
         $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
-        ->select('debts.customer_id', DB::raw('SUM(debts.sold) as total'))
         ->where('I.type_facture','=','credit')
         ->where('I.enterprise_id','=',$request['enterprise_id'])
         ->where('debts.sold','>',0)
+        ->select('debts.customer_id', DB::raw('SUM(debts.sold) as total'))
         ->whereBetween('debts.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
         ->groupByRaw('debts.customer_id')
-        ->get()); 
+        ->get());
         $listdata=$list->transform(function ($item) use ($request){
-            $item['customer']=CustomerController::where('id','=',$item['customer_id'])->select('customerName','adress','phone','mail')->first();
+            $item['customer']=CustomerController::find($item['customer_id'])->select('customerName','adress','phone','mail');
             $debts=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
             ->where('debts.customer_id','=',$item['customer_id'])
             ->where('sold','>',0)
@@ -209,6 +209,7 @@ class DebtsController extends Controller
                 ->where('invoice_details.invoice_id','=',$debt['invoice_id'])
                 ->select('invoice_details.service_id','S.name','UOM.symbol','invoice_details.quantity','invoice_details.total')
                 ->get();
+                // code ici se formate a chaque fois
                 $debt['details']=$details;
                 $debt['already_payed']=DebtPayments::where('debt_id','=',$debt['id'])->get()->sum('amount_payed');
                 return $debt;
@@ -228,21 +229,21 @@ class DebtsController extends Controller
      * get list of debts grouped by customer
      */
     public function debtsgroupedbycustomerbasedodateoperation(Request $request){
-        
+
         if(isset($request['from']) && isset($request['to'])==false){
             $request['to']=$request['from'];
-        } 
-        
+        }
+
         if(isset($request['from'])==false && isset($request['to'])){
             $request['from']=$request['to'];
         }
-        
+
         if(isset($request['from'])==false && isset($request['to'])==false){
             $request['from']=date('Y-m-d');
             $request['to']=date('Y-m-d');
         }
-           
-    
+
+
         $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
         ->select('debts.customer_id', DB::raw('SUM(debts.sold) as total'))
         ->where('I.type_facture','=','credit')
@@ -250,7 +251,7 @@ class DebtsController extends Controller
         ->where('debts.sold','>',0)
         ->whereBetween('debts.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
         ->groupByRaw('debts.customer_id')
-        ->get()); 
+        ->get());
         $listdata=$list->transform(function ($item) use ($request){
             $item['customer']=CustomerController::where('id','=',$item['customer_id'])->select('customerName','adress','phone','mail')->first();
             $debts=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
@@ -279,7 +280,7 @@ class DebtsController extends Controller
             "money"=>$this->defaultmoney($request['enterprise_id'])
         ]);
     }
-    
+
     /**
      * get list of debts grouped by customer filtered by criteria
      */
@@ -287,12 +288,12 @@ class DebtsController extends Controller
 
         if(isset($request['from']) && empty($request['to'])){
             $request['to']=$request['from'];
-        } 
-        
+        }
+
         if(empty($request['from']) && isset($request['to'])){
             $request['from']=$request['to'];
         }
-        
+
         if(empty($request['from']) && empty($request['to'])){
             $request['from']=date('Y-m-d');
             $request['to']=date('Y-m-d');
@@ -300,7 +301,7 @@ class DebtsController extends Controller
 
         switch ($request['criteria']) {
             case 'payed':
-                
+
                 $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
                 ->select('debts.customer_id', DB::raw('SUM(debts.sold) as total'))
                 ->where('I.type_facture','=','credit')
@@ -311,7 +312,7 @@ class DebtsController extends Controller
                 ->get());
                 break;
             case 'partially':
-                
+
                     $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
                     ->select('debts.customer_id', DB::raw('SUM(debts.sold) as total'))
                     ->where('I.type_facture','=','credit')
@@ -334,7 +335,7 @@ class DebtsController extends Controller
             default:
                 $list=[];
                 break;
-        }           
+        }
 
         $listdata=$list->transform(function ($item) use ($request){
             $item['customer']=CustomerController::where('id','=',$item['customer_id'])->select('customerName','adress','phone','mail')->first();
@@ -374,8 +375,8 @@ class DebtsController extends Controller
             return $this->show($item);
         });
         return $listdata;
-    }  
-    
+    }
+
     /**
      * Compte courant Customer
      */
@@ -384,7 +385,7 @@ class DebtsController extends Controller
         if (empty($request['from']) && empty($request['to'])) {
             $request['from']=date('Y-m-d');
             $request['to']=date('Y-m-d');
-        } 
+        }
 
         $list=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')->whereBetween('debts.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])->where('debts.customer_id','=',$request['customer_id'])->where('debts.status','=','0')->get(['debts.*']));
         $listdata=$list->map(function ($item){
@@ -433,7 +434,7 @@ class DebtsController extends Controller
             $request['status']='0';
            return  Debts::create($request->all());
         }else{
-           return Debts::create($request->all());   
+           return Debts::create($request->all());
         }
 
     }
@@ -483,7 +484,7 @@ class DebtsController extends Controller
                     //update debt
                     DB::update('update debts set sold = ? where id = ? ',[$debt['amount']-$sumpayments,$debt['id']]);
                 }
-                
+
                 $message='success';
                 $debt=Debts::where('id','=',$request['debt_id'])->get()[0];
             }else{
@@ -528,7 +529,7 @@ class DebtsController extends Controller
     public function destroy(Debts $debts)
     {
         DebtPayments::where('debt_payments.debt_id', '=', $debts->id)->delete();
-        
+
          return Debts::destroy($debts);
     }
 }
