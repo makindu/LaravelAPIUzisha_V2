@@ -397,7 +397,7 @@ Route::get('/points/customer/{id}',[PointsController::class,'foracustomer']);
 Route::apiResource('fences',FencesController::class);
 Route::get('/fences/enterprise/{id}',[FencesController::class,'index']);
 Route::post('/fences/dataforfencing/',[FencesController::class,'dataforfencing']);
-Route::post('/fences/dataforfencingbasedondate/',[FencesController::class,'dataforfencingbasedondate']);
+Route::post('/fences/dataforfencingbasedondate',[FencesController::class,'dataforfencingbasedondate']);
 Route::post('/fences/subtotaldataforfencingbasedondate',[FencesController::class,'dataforfencingsumerized']);
 Route::delete('/fences/delete/{id}',[FencesController::class,'delete2']);
 Route::get('/fences/show/{id}',[FencesController::class,'getone']);

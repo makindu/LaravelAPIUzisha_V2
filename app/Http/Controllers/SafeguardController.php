@@ -130,7 +130,7 @@ class SafeguardController extends Controller
                 }
     
                     try {
-                        $e['invoice']['sync_status']="1";
+                        $e['invoice']['sync_status']=true;
                         if(!isset($e['date_operation']) && empty($e['date_operation'])){
                             $e['date_operation']=date('Y-m-d');
                         }
@@ -191,35 +191,6 @@ class SafeguardController extends Controller
                                 }
                             }
                         }
-
-                                  //check if debt
-                            // if($invoice['type_facture']=='credit'){
-                            //     if($invoice['customer_id']>0){
-                            //         $debt=Debts::create([
-                            //             'created_by_id'=>$invoice['edited_by_id'],
-                            //             'customer_id'=>$invoice['customer_id'],
-                            //             'invoice_id'=>$invoice['id'],
-                            //             'status'=>'0',
-                            //             'amount'=>$invoice['netToPay']-$invoice['amount_paid'],
-                            //             'sold'=>$invoice['netToPay']-$invoice['amount_paid'],
-                            //             'uuid'=>$this->getUuId('D','C'),
-                            //             'sync_status'=>'1',
-                            //             'done_at'=>$invoice['date_operation']
-                            //         ]);
-
-                            //         //if there is amount paid creating a payment
-                            //         if ($invoice['amount_paid']>0) {
-                            //             DebtPayments::create([
-                            //                 'done_by_id'=>$invoice['edited_by_id'],
-                            //                 'debt_id'=>$debt['id'],
-                            //                 'amount_payed'=>$invoice['amount_paid'],
-                            //                 'uuid'=>$this->getUuId('P','C'),
-                            //                 'done_at'=>$invoice['date_operation']
-                            //             ]);
-                            //         } 
-                            //     }
-                            // }                       
-                   
                     } catch (\Throwable $th) {
                         //throw $th;
                     }

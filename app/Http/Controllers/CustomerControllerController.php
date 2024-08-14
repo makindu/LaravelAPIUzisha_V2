@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\CustomerController;
 use App\Http\Requests\StoreCustomerControllerRequest;
 use App\Http\Requests\UpdateCustomerControllerRequest;
+use stdClass;
 
 class CustomerControllerController extends Controller
 {
@@ -80,10 +81,31 @@ class CustomerControllerController extends Controller
      */
     public function store(StoreCustomerControllerRequest $request)
     {
+        $newcustomer= new stdClass;
+        $ese=$this->getEse($request['created_by_id']);
         if (!$request['uuid']) {
             $request['uuid']=$this->getUuId('C','C');
         }
-        return $this->show(CustomerController::create($request->all()));
+
+        if(!$request['type']){
+            $request['type']="physique";
+        }
+
+        $request['sync_status']=true;
+        $request['enterprise_id']=$ese->id;
+        //if exists actual customer
+        $ifexists=CustomerController::where('customerName',$request['customerName'])
+                                    ->where('enterprise_id',$ese->id)->first();
+        if ($ifexists) {
+           return response()->json([
+            "message"=>"duplicated",
+            "data"=>null,
+            "status"=>200
+           ]);
+        }
+
+        $newcustomer=$this->show(CustomerController::create($request->all()));
+        return $newcustomer;
     }
 
     /**
