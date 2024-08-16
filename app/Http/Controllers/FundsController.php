@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\requestHistory;
 use App\Http\Requests\StorefundsRequest;
 use App\Http\Requests\UpdatefundsRequest;
+use App\Models\decision_team;
 use Illuminate\Support\Facades\DB;
 
 class FundsController extends Controller
@@ -21,6 +22,30 @@ class FundsController extends Controller
         $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
         ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
         ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*']);
+        return $list;
+    }
+
+    public function mines($user){
+        $list=[];
+        $actualuser=$this->getinfosuser($user);
+        $ese=$this->getEse($user);
+        if ($actualuser) {
+
+            if ($actualuser['user_type']!=='super_admin') {
+                $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
+                ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
+                ->where('user_id','=',$user)
+                ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*']);
+            }
+            else{
+                $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
+                ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
+                ->where('funds.enterprise_id',$ese->id)
+                ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*']);
+            }
+
+        }
+         
         return $list;
     }
 
@@ -42,16 +67,35 @@ class FundsController extends Controller
      */
     public function store(Request $request)
     {
+        if (isset($request['sold']) &&  $request['sold']>0) {
+            # code...
+        }else{
+            $request['sold']=0;
+        }
+       
+        if(count(funds::all())>0){
+            if($request['principal']==true){
+                //update others funds
+                $this->updatllfundstofalse();
+            }
+        }else{
+            $request['principal']=1;
+        }
+        
         $fund=funds::create($request->all());
         //make a new entry
         if($fund->sold>0){
-            requestHistory::create(['user_id'=>$request->created_by,'fund_id'=>$fund->id,'amount'=>$fund->sold,'motif'=>'Premier approvisionnement','type'=>'entry']);
+            requestHistory::create(['done_at'=>date('Y-m-d'),'user_id'=>$request->created_by,'fund_id'=>$fund->id,'amount'=>$fund->sold,'motif'=>'Premier approvisionnement','type'=>'entry','enterprise_id'=>$request->enterprise_id,'uuid'=>$this->getUuId('C','RH'),'sold'=>$fund->sold]);
         }
        
-        return funds::leftjoin('users as U', 'funds.user_id','=','U.id')
-        ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
-        ->where('funds.id','=',$fund->id)
-        ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*'])[0];
+        return $this->show($fund);
+    }
+
+    /**
+     * update all principal field funds to false
+     */
+    public function updatllfundstofalse(){
+        DB::update('update funds set principal =0'); 
     }
 
     /**
@@ -96,7 +140,12 @@ class FundsController extends Controller
      * Update a specific fund
      */
     public function update2(Request $request,$funds){
+        // return $request;
         $element = funds::find($funds);
+        if($request['principal']==1){
+            $this->updatllfundstofalse();
+            $request['principal']=true;
+        }
         $element->update($request->all());
         return $this->show($element);
     }
@@ -104,12 +153,24 @@ class FundsController extends Controller
     /**
      * Reset a specific fund
      */
-    public function reset($id){
-        
-        DB::update('update funds set sold=0 where id =? ',[$id]);
-        $tub=funds::find($id);
-        DB::delete('delete from request_histories where fund_id=?',[$id]);
-        return $this->show($tub);
+    public function reset(Request $request){
+        $requestHistoryCtrl= new RequestHistoryController();
+        DB::update('update funds set sold=? where id =? ',[$request['amount'],$request['fund_id']]);
+        $tub=funds::find($request['fund_id']);
+       
+         //archive the operation in request history
+         $history = new Request();
+         $history['user_id'] = $request['user_id'];
+         $history['fund_id'] = $request['fund_id'];
+         $history['amount'] =$request['amount'];
+         $history['type'] ='entry';
+         $history['uuid'] =$this->getUuId('C','RS');
+         $history['enterprise_id'] =$this->getEse($request['user_id'])['id'];
+         $history['motif'] = 'opening balance';
+         $history['done_at'] =date('Y-m-d');
+         $mouv_history=requestHistory::create($history->all());
+
+        return ['tub'=>$this->show($tub),'history'=>$requestHistoryCtrl->show($mouv_history)];
     }
     /**
      * Remove the specified resource from storage.
@@ -140,6 +201,96 @@ class FundsController extends Controller
             return response()->json(['message' => 'Data not found'], 200);
         }
         return response()->json($data::find($id), 200);
+    }
+
+    /**
+     * request histories by agent
+     */
+    public function requesthistoriesbyagent(Request $request){
+        $listfunds=[];
+        if(isset($request->from)==false && empty($request->from) && isset($request->to)==false && empty($request->to)){
+            $request['from']= date('Y-m-d');
+            $request['to']=date('Y-m-d');
+        }
+
+        if (isset($request->user_id)) {
+            $actualuser=$this->getinfosuser($request->user_id);
+            if ($actualuser) {
+                $ese=$this->getEse($request->user_id);
+                if ($ese) {
+                    if ($actualuser['user_type']!=='super_admin') {
+                        $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
+                        ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
+                        ->where('user_id','=',$request->user_id)
+                        ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*']);
+                        $listfunds=$list->pluck('id')->toArray();
+                    }
+                    else{
+                        $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
+                        ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
+                        ->where('funds.enterprise_id',$ese->id)
+                        ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*']);
+                        $listfunds=$list->pluck('id')->toArray();
+                    }
+
+                    if (count($listfunds)>0) {
+                        # get request histories for the funds
+                        try {
+                            
+                            $requestHistoryCtrl = new RequestHistoryController();
+                            $histories=collect(requestHistory::whereIn('fund_id',$listfunds)
+                            ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                            ->get());
+                            
+                            $histories=$histories->transform(function ($item) use($requestHistoryCtrl){
+                               return  $requestHistoryCtrl->show($item);
+                            });
+
+                            return response()->json([
+                                "status"=>200,
+                                "message"=>"success",
+                                "error"=>null,
+                                "data"=>$histories
+                            ]);
+                        } catch (\Throwable $th) {
+                            return response()->json([
+                                "status"=>500,
+                                "message"=>"error occured",
+                                "error"=>$th,
+                                "data"=>null
+                            ]);
+                        }
+                    }
+                }else{
+                    return response()->json([
+                        "status"=>400,
+                        "message"=>"unknown enterprise",
+                        "error"=>"unknown enterprise",
+                        "data"=>null
+                    ]);
+                }
+                
+            }else{
+                return response()->json([
+                    "status"=>400,
+                    "message"=>"unknown user",
+                    "error"=>"unknown user",
+                    "data"=>null
+                ]);
+            }
+        }else{
+            return response()->json([
+                "status"=>400,
+                "message"=>"unknown user",
+                "error"=>"unknown user",
+                "data"=>null
+            ]);
+        }
+    }
+
+    public function getSold($id){
+        $data=funds::find($id);
+        return $data['sold'];  
     }
 
 }

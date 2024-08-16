@@ -27,6 +27,8 @@ class CreateRequestHistoriesTable extends Migration
             $table->foreign('fund_id')->references('id')->on('funds')->onDelete('cascade');
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
+            $table->date('done_at')->nullable();
+            $table->integer('account_id')->nullable();
             $table->timestamps();
         });
     }

@@ -7,6 +7,7 @@ use App\Models\requestHistory;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StorerequestHistoryRequest;
 use App\Http\Requests\UpdaterequestHistoryRequest;
+use Illuminate\Http\Request;
 
 class RequestHistoryController extends Controller
 {
@@ -40,6 +41,8 @@ class RequestHistoryController extends Controller
     public function store(StorerequestHistoryRequest $request)
     {
         if($request->type=='entry'){
+            $fund=funds::find($request->fund_id);
+            $request['sold']=$fund->sold+$request->amount;
             $newvalue=requestHistory::create($request->all());
             DB::update('update funds set sold =sold + ? where id = ? ',[$request->amount,$request->fund_id]);
         }else{
@@ -47,12 +50,49 @@ class RequestHistoryController extends Controller
             $gettingsold=funds::where('id','=',$request->fund_id)->get('funds.sold')[0];
             $sold=$gettingsold['sold'];
             if($sold>=$request->amount){
+                $request['sold']=$sold-$request->amount;
                 $newvalue=requestHistory::create($request->all());
                 DB::update('update funds set sold =sold - ? where id = ? ',[$request->amount,$request->fund_id]); 
             }else{}
         }
 
         return  $this->show($newvalue);
+    }
+
+    /**
+     * save multiples
+     */
+    public function savemultiple(Request $request){
+        $data=[];
+        if ($request->data && count($request->data)>0) {
+            try {
+                foreach ($request->data as  $item) {
+                    array_push($data,$this->store(new StorerequestHistoryRequest($item)));
+                }
+
+                return response()->json([
+                    "status"=>200,
+                    "message"=>"success",
+                    "error"=>null,
+                    "data"=>$data
+                ]);
+            } catch (\Throwable $th) {
+                return response()->json([
+                    "status"=>500,
+                    "message"=>"error occured",
+                    "error"=>$th,
+                    "data"=>null
+                ]);
+            }
+          
+        }else{
+            return response()->json([
+                "status"=>500,
+                "message"=>"error occured",
+                "error"=>"no data sent",
+                "data"=>null
+            ]);
+        }
     }
 
     /**
@@ -63,7 +103,12 @@ class RequestHistoryController extends Controller
      */
     public function show(requestHistory $requestHistory)
     {
-        return requestHistory::join('users','request_histories.user_id','=','users.id')->where('request_histories.id','=',$requestHistory->id)->get(['request_histories.*','users.user_name'])[0];
+        return requestHistory::join('users','request_histories.user_id','=','users.id')
+                            ->join('funds as F','request_histories.fund_id','F.id')
+                            ->join('moneys as M','F.money_id','M.id')
+                            ->leftjoin('accounts as A','request_histories.account_id','A.id')
+                            ->where('request_histories.id','=',$requestHistory->id)
+                            ->get(['request_histories.*','A.name as account_name','F.description as fund_name','M.abreviation','users.user_name'])->first();
     }
 
     /**

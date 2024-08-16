@@ -13,6 +13,7 @@ class funds extends Model
         'description',
         'money_id',
         'user_id',
+        'principal',
         'enterprise_id'
     ];
 }

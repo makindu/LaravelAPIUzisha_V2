@@ -540,13 +540,13 @@ class InvoicesController extends Controller
             
            $entries=OtherEntries::leftjoin('accounts as A','other_entries.account_id','=','A.id')
            ->where('other_entries.enterprise_id','=',$enterprise['id'])
-           ->whereBetween('other_entries.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
-           ->get(['A.name','other_entries.*']);
+           ->whereBetween('other_entries.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+           ->get(['A.name','other_entries.*','other_entries.done_at as created_at']);
 
            $withdraw=Expenditures::leftjoin('accounts as A','expenditures.account_id','=','A.id')
            ->where('expenditures.enterprise_id','=',$enterprise['id'])
-           ->whereBetween('expenditures.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
-           ->get(['A.name','expenditures.*']);
+           ->whereBetween('expenditures.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+           ->get(['A.name','expenditures.*','expenditures.done_at as created_at']);
 
             $list_data['entries']=$entries;
             $list_data['sum_entries']=$entries->sum('amount');
@@ -559,13 +559,13 @@ class InvoicesController extends Controller
             $entries=OtherEntries::leftjoin('accounts as A','other_entries.account_id','=','A.id')
             ->where('other_entries.user_id','=',$request['user_id'])
             ->where('other_entries.enterprise_id','=',$enterprise['id'])
-            ->whereBetween('other_entries.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->whereBetween('other_entries.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
             ->get(['A.name','other_entries.*']);
  
             $withdraw=Expenditures::leftjoin('accounts as A','expenditures.account_id','=','A.id')
             ->where('expenditures.user_id','=',$request['user_id'])
             ->where('expenditures.enterprise_id','=',$enterprise['id'])
-            ->whereBetween('expenditures.created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->whereBetween('expenditures.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
             ->get(['A.name','expenditures.*']);
  
              $list_data['entries']=$entries;

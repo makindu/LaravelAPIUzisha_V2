@@ -18,6 +18,9 @@ class requestHistory extends Model
         'request_id',
         'fence_id',
         'invoice_id',
-        'enterprise_id'
+        'enterprise_id',
+        'sold',
+        'done_at',
+        'account_d'
     ];
 }

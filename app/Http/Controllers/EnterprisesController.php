@@ -300,6 +300,7 @@ class EnterprisesController extends Controller
             $payments= DB::update("update debt_payments set done_at=created_at where done_at IS NULL ");
             $pointshistories= DB::update("update customerspointshistories set done_at=created_at where done_at IS NULL ");
             $cautions= DB::update("update cautions set done_at=created_at where done_at IS NULL ");
+            $requesthistories= DB::update("update request_histories set done_at=created_at where done_at IS NULL ");
             return response()->json([
                 "message"=>"success",
                 "data"=>[
@@ -311,7 +312,8 @@ class EnterprisesController extends Controller
                     "debts"=>$debts,
                     "payments"=>$payments,
                     "pointshistories"=>$pointshistories,
-                    "cautions"=>$cautions
+                    "cautions"=>$cautions,
+                    "requesthistories"=>$requesthistories
                 ],
                 "error"=>null
             ]);

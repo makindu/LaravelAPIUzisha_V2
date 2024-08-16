@@ -131,6 +131,20 @@ class DebtsController extends Controller
             $customers=collect(CustomerController::whereIn('id',$request['customers'])->get());
             $customers->transform(function ($customer) use ($request){ 
                 //debts list
+                $customer['soldnet']=Debts::select(DB::raw('SUM(sold) as soldnet'))
+                ->where('customer_id','=',$customer['id'])->first()->soldnet;
+
+                $totaldebts=Debts::where('debts.customer_id','=',$customer['id'])
+                ->whereBetween('debts.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->select(DB::raw('SUM(debts.amount) as totaldebts'))
+                ->first(); 
+
+                $totalpayed=DebtPayments::join('debts as D','debt_payments.debt_id','=','D.id')
+                ->where('D.customer_id','=',$customer['id'])
+                ->whereBetween('debt_payments.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                ->select(DB::raw('SUM(debt_payments.amount_payed) as totalpayed'))
+                ->first();
+
                      $debts=collect(Debts::join('invoices as I','debts.invoice_id','=','I.id')
                             ->where('debts.customer_id','=',$customer['id'])
                             // ->where('sold','>',0)
@@ -150,8 +164,8 @@ class DebtsController extends Controller
                             return $debt;
                         });
                     $customer['debts']=$debts;
-                    $customer['total']=$debts->sum('amount');
-                    $customer['totalpayed']=$debts->sum('already_payed');
+                    $customer['total']=$totaldebts->totaldebts;
+                    $customer['totalpayed']=$totalpayed->totalpayed;
                     $customer['sold']= $customer['total'] - $customer['totalpayed'];
                 return $customer;
             });
@@ -165,6 +179,7 @@ class DebtsController extends Controller
             "total_general"=>$customers->sum('total'),
             "totalgeneralpayed"=>$customers->sum('totalpayed'),
             "totalgeneralsold"=>$customers->sum('sold'),
+            "totalgeneralsoldnet"=>$customers->sum('soldnet'),
             "money"=>$this->defaultmoney($request['enterprise_id'])
         ]);
       }
@@ -298,7 +313,7 @@ class DebtsController extends Controller
             });
             // $item['debts']=$debts;
             $item['total']=$totaldebts->totaldebts;
-            $item['totalpayed']=$debts->sum('already_payed');
+            $item['totalpayed']=$totalpayed->totalpayed;
             $item['sold']= $item['total'] - $item['totalpayed'];
           
             return $item;
@@ -310,6 +325,7 @@ class DebtsController extends Controller
             "totalgeneralcredit"=>$listdata->sum('total'),
             "totalgeneralpayed"=>$listdata->sum('totalpayed'),
             "totalgeneralsold"=>$listdata->sum('sold'),
+            "totalgeneralsoldnet"=>$listdata->sum('soldnet'),
             "to"=>$request['to'],
             "money"=>$this->defaultmoney($request['enterprise_id'])
         ]);

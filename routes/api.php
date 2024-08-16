@@ -107,6 +107,8 @@ Route::post('/users/dashboard/{id}',[UsersController::class,'dashboardBasedDateO
 Route::post('/users/makeassuperadmin',[UsersController::class,'makeassuperadmin']);
 Route::post('/users/resetpassword',[UsersController::class,'ifexistsemailadress']);
 
+//Funds
+Route::get('/funds/mines/{id}', [FundsController::class,'mines']);
 
 //reservations
 Route::apiResource('/reservations',ReservationsController::class);
@@ -155,6 +157,8 @@ Route::apiResource('/funds', FundsController::class);
 Route::get('funds/reset/{id}',[FundsController::class,'reset']);
 Route::delete('/funds/delete/{id}',[FundsController::class,'destroy2']);
 Route::patch('funds/update/{funds}',[FundsController::class,'update2']);
+Route::post('/funds/requesthistories',[FundsController::class,'requesthistoriesbyagent']);
+Route::post('/funds/savemultiples',[RequestHistoryController::class,'savemultiple']);
 
 Route::resource('/money_conversion', MoneyConversionController::class);
 Route::get('/money_conversion/enterprise/{enterpriseId}', [MoneyConversionController::class,'index']);
