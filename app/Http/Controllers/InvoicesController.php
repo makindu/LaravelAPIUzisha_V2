@@ -1882,12 +1882,7 @@ class InvoicesController extends Controller
                                                'user_id'=>$request['edited_by_id']
                                        ]);
                                        $customer->update(['totalbonus'=> $customer->totalbonus +$detail['price']]);
-                                       //    return  response()->JSON('data ');
-                                       //    $bonuses = Bonus::where('customer_id',$invoice['customer_id']) ->where('service_id',$detail['service_id'])->get();
-                                       //    foreach ($bonuses as $bonus) {
-                                       //        $bonus->update(['invoice_id',$invoice->id ]);
-                                       //    }
-
+                                      
                                    }
                                }
 
@@ -1905,17 +1900,7 @@ class InvoicesController extends Controller
                                            //throw $th;
                    }
 
-
                }
-               // code ici est obsolete
-               // $enterprise = Enterprises::find($request->enterprise_id);
-               //     if($countService > $enterprise->initValueBonus){
-               //         // logic for Bonus here
-               //         $totalBonus = 0 ; //logic du total bonus change 0 to your value or ration
-               //         $customer->update(['totalbonus'=>$totalBonus]);
-               //        $now = Carbon::now(); //set date idem to the stockhistoryTimeSamp
-               //        $customer->update(['lastbonusdate'=>$now]);
-               //     }
           }
 
           //if invoice-type=='caution'
@@ -1946,6 +1931,112 @@ class InvoicesController extends Controller
               'message'=>'can make invoice'
           ]);
 }
+public function testwithdrawadjust(){
+   // return Carbon::now()->startOfWeek();
+   $newwithdraw=  StockHistoryController::create([
+        'service_id'=>3,
+        'user_id'=>1,
+        'invoice_id'=>null,
+        'quantity'=>12004,
+        'price'=>350,
+        'type'=>'withdraw',
+        'type_approvement'=>'cash',
+        'enterprise_id'=>1,
+        'motif'=>'vente',
+        'done_at'=>Carbon::now(),
+        'date_operation'=>Carbon::now(),
+        'uuid'=>$this->getUuId('C','ST'),
+        'depot_id'=>1,
+        'quantity_before'=>12062,
+    ]);
+   return $this->withdrawadjust(1, $newwithdraw->quantity,$newwithdraw->price, $newwithdraw->id, 3);
+}
+
+public function withdrawadjust($depot_id, $quantity_withdraw,$price_withdraw, $operation_withdraw, $service_id){
+    $week_start_date = Carbon::now()->startOfWeek();
+    $week_end_date = Carbon::now()->endOfWeek();
+   
+        $method_used=  DepositController::find($depot_id)->withdrawing_method;
+        $stockhistories = StockHistoryController::where('service_id', $service_id)
+                                            ->where('depot_id', $depot_id)
+                                            ->where('type', 'entry')
+                                            ->where(function($req){
+                                                $req->where('sold','>', 0)->orWhere('sold', null);
+                                            });
+                                            // ->orWhere('sold', null);
+        // Il faudra exclure dans les services les ventes des services qui ont deja expire
+        $service_with_expiration_date= $stockhistories->whereBetween('expiration_date',[ $week_start_date, $week_end_date])
+                                                        ->orderBy('expiration_date', 'ASC')
+                                                        ->get();
+        $service_fifo =StockHistoryController::where('service_id', $service_id)
+                                            ->where('type', 'entry')
+                                            ->where('depot_id', $depot_id)
+                                            ->where(function($req){
+                                                $req->where('sold','>', 0)->orWhere('sold', null);
+                                            })
+                                            ->orderBy('id','ASC')
+                                            ->get();
+        $service_lifo =StockHistoryController::where('service_id', $service_id)
+                                            ->where('type', 'entry')
+                                            ->where('depot_id', $depot_id)
+                                            ->where(function($req){
+                                                $req->where('sold','>', 0)->orWhere('sold', null);
+                                            })         ->orderBy('id','DESC')
+                                            ->get();
+        return  $service_lifo;
+        if($service_with_expiration_date->count()){
+            $this->Operations($depot_id, $service_with_expiration_date,$price_withdraw, $quantity_withdraw, $operation_withdraw, $service_id );
+        }
+        else{
+            if($method_used=="fifo"){
+                $this->Operations($depot_id, $service_fifo,$price_withdraw, $quantity_withdraw, $operation_withdraw, $service_id );
+            }
+            if($method_used=="lifo"){
+                $this->Operations($depot_id, $service_lifo,$price_withdraw, $quantity_withdraw, $operation_withdraw, $service_id );
+            }else{
+                // method 
+            }
+        }
+}
+    public function Operations($depot_id,$services,$price_withdraw, $quantity_withdraw, $operation_withdraw, $service_id){
+        $isReturn = false;
+        forEach($services as $stockhistory){
+            
+            $diff = $stockhistory->sold != null? $stockhistory->sold-$quantity_withdraw:$stockhistory->quantity -$quantity_withdraw ; // 12000
+            if($diff>=0){ //500
+                $stockhistory->sold = $diff; //500
+                $stockhistory->quantity_used =trim($stockhistory->quantity_used)!=""? $stockhistory->quantity_used . ";".$quantity_withdraw:$quantity_withdraw; //500
+                $stockhistory->price_used =trim($stockhistory->price_used)!="" ? $stockhistory->price_used . ";" . $price_withdraw:$price_withdraw; //200
+                $stockhistory->operation_used = trim($stockhistory->operation_used) !=""? $stockhistory->operation_used . ";" . $operation_withdraw: $operation_withdraw;  //613
+                $stockhistory->save();
+                //update stock
+                $quantity_withdraw -= $diff;
+                if($quantity_withdraw>0){
+                    $isReturn = true;
+                }else{
+                    $isReturn = false;
+                    break;
+                }
+            }
+            else{
+                if($quantity_withdraw<0) break;
+                $diff =$stockhistory->sold != null? $quantity_withdraw- $stockhistory->sold: $quantity_withdraw- $stockhistory->quantity;
+                $stockhistory->sold= 0;
+                $stockhistory->quantity_used =trim($stockhistory->quantity_used)!="" && $stockhistory->quantity_used!="0" ? $stockhistory->quantity_used . ";".$quantity_withdraw:$quantity_withdraw-$diff;
+                $stockhistory->price_used =trim($stockhistory->price_used)!="" && $stockhistory->price_used!="0" ? $stockhistory->price_used . ";" . $price_withdraw:$price_withdraw;
+                $stockhistory->operation_used = trim($stockhistory->operation_used) !="" && $stockhistory->operation_used!="0"? $stockhistory->operation_used . ";" . $operation_withdraw: $operation_withdraw;
+                $stockhistory->save();
+                $quantity_withdraw = $diff;
+                if($quantity_withdraw>0){
+                    $isReturn = true;
+                }else{
+                    $isReturn = false;
+                }
+            }
+          
+        }
+       if($isReturn) return $this->withdrawadjust($depot_id, $quantity_withdraw,$price_withdraw, $operation_withdraw, $service_id) ;
+    }
 
     public function saveInvoice(StoreInvoicesRequest $request){
         // return $request;

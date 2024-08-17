@@ -651,3 +651,6 @@ Route::apiResource('vehicules',VehiculesController::class);
 Route::get('/vehicules/enterprise/{id}',[VehiculesController::class,'index']);
 Route::post('/vehicules/search-words',[VehiculesController::class,'searchbywords']);
 
+//tests methods
+Route::get('/testwithdrawadjust',[InvoicesController::class,'testwithdrawadjust']);
+
