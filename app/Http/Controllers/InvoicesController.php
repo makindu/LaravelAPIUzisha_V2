@@ -1937,7 +1937,7 @@ public function testwithdrawadjust(){
         'service_id'=>3,
         'user_id'=>1,
         'invoice_id'=>null,
-        'quantity'=>12004,
+        'quantity'=>41,
         'price'=>350,
         'type'=>'withdraw',
         'type_approvement'=>'cash',
@@ -1946,10 +1946,10 @@ public function testwithdrawadjust(){
         'done_at'=>Carbon::now(),
         'date_operation'=>Carbon::now(),
         'uuid'=>$this->getUuId('C','ST'),
-        'depot_id'=>1,
+        'depot_id'=>2,
         'quantity_before'=>12062,
     ]);
-   return $this->withdrawadjust(1, $newwithdraw->quantity,$newwithdraw->price, $newwithdraw->id, 3);
+   return $this->withdrawadjust($newwithdraw->depot_id, $newwithdraw->quantity,$newwithdraw->price, $newwithdraw->id,$newwithdraw->service_id );
 }
 
 public function withdrawadjust($depot_id, $quantity_withdraw,$price_withdraw, $operation_withdraw, $service_id){
@@ -1983,7 +1983,7 @@ public function withdrawadjust($depot_id, $quantity_withdraw,$price_withdraw, $o
                                                 $req->where('sold','>', 0)->orWhere('sold', null);
                                             })         ->orderBy('id','DESC')
                                             ->get();
-        return  $service_lifo;
+        // return  $service_lifo;
         if($service_with_expiration_date->count()){
             $this->Operations($depot_id, $service_with_expiration_date,$price_withdraw, $quantity_withdraw, $operation_withdraw, $service_id );
         }
@@ -2005,24 +2005,26 @@ public function withdrawadjust($depot_id, $quantity_withdraw,$price_withdraw, $o
             $diff = $stockhistory->sold != null? $stockhistory->sold-$quantity_withdraw:$stockhistory->quantity -$quantity_withdraw ; // 12000
             if($diff>=0){ //500
                 $stockhistory->sold = $diff; //500
-                $stockhistory->quantity_used =trim($stockhistory->quantity_used)!=""? $stockhistory->quantity_used . ";".$quantity_withdraw:$quantity_withdraw; //500
-                $stockhistory->price_used =trim($stockhistory->price_used)!="" ? $stockhistory->price_used . ";" . $price_withdraw:$price_withdraw; //200
-                $stockhistory->operation_used = trim($stockhistory->operation_used) !=""? $stockhistory->operation_used . ";" . $operation_withdraw: $operation_withdraw;  //613
+                $stockhistory->quantity_used =trim($stockhistory->quantity_used)!=""  && $stockhistory->quantity_used!="0"? $stockhistory->quantity_used . ";".$quantity_withdraw:$quantity_withdraw; //500
+                $stockhistory->price_used =trim($stockhistory->price_used)!="" && $stockhistory->price_used!="0" ? $stockhistory->price_used . ";" . $price_withdraw:$price_withdraw; //200
+                $stockhistory->operation_used = trim($stockhistory->operation_used) !="" && $stockhistory->operation_used!="0"? $stockhistory->operation_used . ";" . $operation_withdraw: $operation_withdraw;  //613
                 $stockhistory->save();
                 //update stock
-                $quantity_withdraw -= $diff;
-                if($quantity_withdraw>0){
-                    $isReturn = true;
-                }else{
-                    $isReturn = false;
-                    break;
-                }
+                // $quantity_withdraw -=$diff;
+                // if($quantity_withdraw>0){
+                //     $isReturn = true;
+                // }else{
+                //     $isReturn = false;
+                //     break;
+                // }
+                $isReturn = false;
+                break;
             }
             else{
                 if($quantity_withdraw<0) break;
                 $diff =$stockhistory->sold != null? $quantity_withdraw- $stockhistory->sold: $quantity_withdraw- $stockhistory->quantity;
                 $stockhistory->sold= 0;
-                $stockhistory->quantity_used =trim($stockhistory->quantity_used)!="" && $stockhistory->quantity_used!="0" ? $stockhistory->quantity_used . ";".$quantity_withdraw:$quantity_withdraw-$diff;
+                $stockhistory->quantity_used =trim($stockhistory->quantity_used)!="" && $stockhistory->quantity_used!="0" ? $stockhistory->quantity_used . ";".$quantity_withdraw-$diff:$quantity_withdraw-$diff;
                 $stockhistory->price_used =trim($stockhistory->price_used)!="" && $stockhistory->price_used!="0" ? $stockhistory->price_used . ";" . $price_withdraw:$price_withdraw;
                 $stockhistory->operation_used = trim($stockhistory->operation_used) !="" && $stockhistory->operation_used!="0"? $stockhistory->operation_used . ";" . $operation_withdraw: $operation_withdraw;
                 $stockhistory->save();

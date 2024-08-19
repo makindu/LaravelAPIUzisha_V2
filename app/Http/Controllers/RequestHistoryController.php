@@ -47,13 +47,14 @@ class RequestHistoryController extends Controller
             DB::update('update funds set sold =sold + ? where id = ? ',[$request->amount,$request->fund_id]);
         }else{
             //checking sold
-            $gettingsold=funds::where('id','=',$request->fund_id)->get('funds.sold')[0];
+            $gettingsold=funds::find($request->fund_id);
             $sold=$gettingsold['sold'];
+
             if($sold>=$request->amount){
                 $request['sold']=$sold-$request->amount;
                 $newvalue=requestHistory::create($request->all());
                 DB::update('update funds set sold =sold - ? where id = ? ',[$request->amount,$request->fund_id]); 
-            }else{}
+            }
         }
 
         return  $this->show($newvalue);
@@ -64,6 +65,7 @@ class RequestHistoryController extends Controller
      */
     public function savemultiple(Request $request){
         $data=[];
+        // return $request;
         if ($request->data && count($request->data)>0) {
             try {
                 foreach ($request->data as  $item) {
