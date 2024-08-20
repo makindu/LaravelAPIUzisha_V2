@@ -223,14 +223,24 @@ class FundsController extends Controller
                         ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
                         ->where('user_id','=',$request->user_id)
                         ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*']);
-                        $listfunds=$list->pluck('id')->toArray();
+                        if ($request['funds'] && count($request['funds'])>0) {
+                            $listfunds=$request['funds'];
+                        }else{
+                            $listfunds=$list->pluck('id')->toArray();
+                        }
+                        
                     }
                     else{
                         $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
                         ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
                         ->where('funds.enterprise_id',$ese->id)
                         ->get(['M.abreviation as money_abreviation', 'U.user_name', 'funds.*']);
-                        $listfunds=$list->pluck('id')->toArray();
+
+                        if ($request['funds'] && count($request['funds'])>0) {
+                            $listfunds=$request['funds'];
+                        }else{
+                            $listfunds=$list->pluck('id')->toArray();
+                        }
                     }
 
                     if (count($listfunds)>0) {
@@ -240,8 +250,22 @@ class FundsController extends Controller
                             $requestHistoryCtrl = new RequestHistoryController();
                             $histories=collect(requestHistory::whereIn('fund_id',$listfunds)
                             ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
-                            ->get());
+                            ->get()); 
+
+                            if($request['accounts'] && count($request['accounts'])>0){
+                                $histories=collect(requestHistory::whereIn('fund_id',$listfunds)
+                                ->whereIn('account_id',$request['accounts'])
+                                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->get());
+                            }
                             
+                            if($request['agents'] && count($request['agents'])>0){
+                                $histories=collect(requestHistory::whereIn('fund_id',$listfunds)
+                                ->whereIn('user_id',$request['agents'])
+                                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->get());
+                            }
+                           
                             $histories=$histories->transform(function ($item) use($requestHistoryCtrl){
                                return  $requestHistoryCtrl->show($item);
                             });

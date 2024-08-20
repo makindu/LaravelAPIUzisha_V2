@@ -2009,14 +2009,6 @@ public function withdrawadjust($depot_id, $quantity_withdraw,$price_withdraw, $o
                 $stockhistory->price_used =trim($stockhistory->price_used)!="" && $stockhistory->price_used!="0" ? $stockhistory->price_used . ";" . $price_withdraw:$price_withdraw; //200
                 $stockhistory->operation_used = trim($stockhistory->operation_used) !="" && $stockhistory->operation_used!="0"? $stockhistory->operation_used . ";" . $operation_withdraw: $operation_withdraw;  //613
                 $stockhistory->save();
-                //update stock
-                // $quantity_withdraw -=$diff;
-                // if($quantity_withdraw>0){
-                //     $isReturn = true;
-                // }else{
-                //     $isReturn = false;
-                //     break;
-                // }
                 $isReturn = false;
                 break;
             }
