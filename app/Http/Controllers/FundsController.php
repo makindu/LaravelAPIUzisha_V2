@@ -187,8 +187,14 @@ class FundsController extends Controller
      * Remove the specified resource from storage by forcing
      */
     public function destroy2($id){
+
         $funds=funds::find($id);
-        $funds->delete();
+       
+        $histories=requestHistory::where('fund_id',$funds->id)->get();
+        if (count($histories)>0) {
+            requestHistory::where('fund_id',$funds->id)->delete();
+        } 
+        return  funds::find($id)->delete();
     }
 
     /**

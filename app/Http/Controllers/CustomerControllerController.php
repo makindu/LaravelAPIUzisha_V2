@@ -27,7 +27,12 @@ class CustomerControllerController extends Controller
     public function anonymous($enterpriseid){
         
         $customer=CustomerController::where('customerName','LIKE',"%anonyme%")->where('enterprise_id','=',$enterpriseid)->get()->first();
-        return $customer;
+        if($customer){
+            return $customer;
+        }else{
+            return CustomerController::where('enterprise_id','=',$enterpriseid)->get()->first();
+        }
+        
     }
     
     /**

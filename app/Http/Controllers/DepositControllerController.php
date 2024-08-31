@@ -93,6 +93,9 @@ class DepositControllerController extends Controller
             // $deposits=DepositController::where('enterprise_id','=',$enterprise['id'])->get();
         } else {
             $deposits=DepositsUsers::join('deposit_controllers as D','deposits_users.deposit_id','=','D.id')->where('deposits_users.user_id','=',$request->user_id)->get('D.*');
+            if (count($deposits)<=0) {
+                return [];
+            }
         }
         
         return $deposits; 
