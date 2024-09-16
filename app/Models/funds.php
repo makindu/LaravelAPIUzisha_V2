@@ -14,6 +14,8 @@ class funds extends Model
         'money_id',
         'user_id',
         'principal',
-        'enterprise_id'
+        'enterprise_id',
+        'type',
+        'fund_status'
     ];
 }

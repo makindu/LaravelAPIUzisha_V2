@@ -78,6 +78,8 @@ use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
 use App\Http\Controllers\ReservationsController;
+use App\Http\Controllers\WekamemberaccountsController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -653,4 +655,9 @@ Route::post('/vehicules/search-words',[VehiculesController::class,'searchbywords
 
 //tests methods
 Route::get('/testwithdrawadjust',[InvoicesController::class,'testwithdrawadjust']);
+
+/**
+ * API WEKA AKIBA END-POINTS
+ */
+Route::get('/weka/allaccounts',[WekamemberaccountsController::class,'allaccounts']);
 

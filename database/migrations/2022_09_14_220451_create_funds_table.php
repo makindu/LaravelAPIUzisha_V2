@@ -17,6 +17,8 @@ class CreateFundsTable extends Migration
             $table->id();
             $table->double('sold')->nullable();
             $table->string('description');
+            $table->string('type')->default('internal');
+            $table->string('fund_status')->default('disabled');
             $table->integer('principal')->nullable();
             $table->bigInteger('money_id')->unsigned();
             $table->foreign('money_id')->references('id')->on('moneys')->onDelete('cascade');
