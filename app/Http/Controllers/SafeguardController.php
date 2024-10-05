@@ -19,6 +19,7 @@ use App\Models\DepositServices;
 use App\Models\detailinvoicesubservices;
 use App\Models\InvoiceDetails;
 use App\Models\Invoices;
+use App\Models\notebooks;
 use App\Models\ServicesController;
 use App\Models\StockHistoryController;
 use Illuminate\Http\Request;
@@ -54,6 +55,7 @@ class SafeguardController extends Controller
      */
     public function store(StoresafeguardRequest $request)
     {
+        // return $request;
         //entries treatment
         $entries=[];
         $entryCtrl = new OtherEntriesController();
@@ -115,6 +117,7 @@ class SafeguardController extends Controller
      * new invoices safeguard
      */
     public function invoicesSafeguard(Request $request){
+        // return $request;
         $User=$this->getinfosuser($request['user_id']);
         $Ese=$this->getEse($User['id']);
         $message="";
@@ -131,8 +134,11 @@ class SafeguardController extends Controller
     
                     try {
                         $e['invoice']['sync_status']=true;
-                        if(!isset($e['date_operation']) && empty($e['date_operation'])){
-                            $e['date_operation']=date('Y-m-d');
+                        if(!isset($e['invoice']['date_operation']) && empty($e['invoice']['date_operation'])){
+                            $e['invoice']['date_operation']=date('Y-m-d');
+                        }else{
+                            $originalDate = $e['invoice']['date_operation'];
+                            $e['invoice']['date_operation'] = date("Y-m-d", strtotime($originalDate));
                         }
 
                         $invoice=Invoices::create($e['invoice']);
@@ -172,6 +178,16 @@ class SafeguardController extends Controller
                                         ]);
                                     } 
                                     
+                                    if(isset($detail['notebooks']) && count($detail['notebooks'])>0){
+                                        $actualcustomer=CustomerController::find($e['invoice']['customer_id']);
+                                        foreach ($detail['notebooks'] as  $notebook) {
+                                            //looking for notebook
+                                            $actualnotebook= notebooks::find($notebook);
+                                            if($actualnotebook && $actualnotebook->status=='available' && $actualnotebook->user_id==null){
+                                                $actualnotebook->update(['user_id'=>$actualcustomer->member_id,'status'=>'unvailable','price'=>$detail['price']]);   
+                                            }
+                                        }              
+                                    }
                                        //if detail has subservices(accomp)
                                         if(isset($detail['subservices']) && count($detail['subservices'])>0){
                                             foreach ($detail['subservices'] as $accomp) {
@@ -186,6 +202,8 @@ class SafeguardController extends Controller
                                                 ]);
                                             }
                                         }
+
+
                                 } catch (\Throwable $th) {
                                     //throw $th;
                                 }

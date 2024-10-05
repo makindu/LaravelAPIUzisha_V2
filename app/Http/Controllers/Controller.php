@@ -9,6 +9,7 @@ use App\Models\Invoices;
 use Illuminate\Support\Str;
 use App\Models\PricesCategories;
 use App\Models\ServicesController;
+use App\Models\wekamemberaccounts;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Bus\DispatchesJobs;
@@ -72,7 +73,23 @@ class Controller extends BaseController
        }else{
         return false;
        }
+    } 
+    
+    public function EseNumberUsers($EseId){
+        
+       $users=user::leftjoin('usersenterprises as UE','users.id','=','UE.user_id')
+                    ->where('UE.enterprise_id','=',$EseId) 
+                    ->get();
+        return $users->count();
+    
+    }  
+    
+    public function EseNumberAccounts($EseId){
+        
+       $accounts=wekamemberaccounts::where('enterprise_id','=',$EseId)->get();
+        return $accounts->count();
     }
+
     public function getStringUUID(){
         // return (string) Str::uuid();
         return (string) Str::orderedUuid();

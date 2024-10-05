@@ -31,7 +31,10 @@ class User extends Authenticatable
         'permissions',
         'note',
         'avatar',
-        'full_name'
+        'uuid',
+        'full_name',
+        'pin',
+        'collector'
     ];
 
     public function requests(){

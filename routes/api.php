@@ -78,6 +78,8 @@ use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
 use App\Http\Controllers\ReservationsController;
+use App\Http\Controllers\WekaAccountsTransactionsController;
+use App\Http\Controllers\WekafirstentriesController;
 use App\Http\Controllers\WekamemberaccountsController;
 
 /*
@@ -659,5 +661,21 @@ Route::get('/testwithdrawadjust',[InvoicesController::class,'testwithdrawadjust'
 /**
  * API WEKA AKIBA END-POINTS
  */
-Route::get('/weka/allaccounts',[WekamemberaccountsController::class,'allaccounts']);
+Route::get('/weka/allaccounts/{id}',[WekamemberaccountsController::class,'allaccounts']);
+Route::get('/weka/member/accounts/{id}',[WekamemberaccountsController::class,'membersaccounts']);
+Route::post('/weka/import/members',[UsersController::class,'wekaimportmembers']);
+Route::get('/weka/users/enterprise/{id}',[UsersController::class,'wekamemberslist']);
+Route::get('/weka/members-to-validated/enterprise/{id}',[UsersController::class,'wekamemberstovalidate']);
+Route::post('/weka/members/lookup',[UsersController::class,'wekamemberslookup']);
+Route::post('/weka/transactions/new',[WekaAccountsTransactionsController::class,'store']);
+Route::post('/weka/transactions/syncing',[WekaAccountsTransactionsController::class,'syncing']);
+Route::post('/weka/transactions',[WekaAccountsTransactionsController::class,'index']);
+
+Route::post('/weka/members/newmember',[UsersController::class,'newwekamember']);
+Route::post('/weka/firstentries',[WekafirstentriesController::class,'index']);
+Route::post('/weka/firstentries/new',[WekafirstentriesController::class,'store']);
+Route::post('/weka/members-validation',[UsersController::class,'members_validation']);
+Route::post('/weka/usersbytypes/enterprise',[UsersController::class,'usersbytypes']);
+Route::post('/users/membertocollectors',[UsersController::class,'membertocollectors']);
+
 

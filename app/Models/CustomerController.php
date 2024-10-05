@@ -26,6 +26,7 @@ class CustomerController extends Model
         'totalpoints',
         'totalbonus',
         'totalcautions',
-        'sync_status'
+        'sync_status',
+        'member_id'
     ];
 }

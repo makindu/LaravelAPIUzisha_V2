@@ -14,16 +14,19 @@ class CreateWekamemberaccountsTable extends Migration
     public function up()
     {
         Schema::create('wekamemberaccounts', function (Blueprint $table) {
+            $table->id(); 
             $table->double('sold')->nullable();
             $table->string('description');
             $table->string('type')->default('internal');
             $table->string('account_status')->default('disabled');
+            $table->string('account_number')->nullable();
             $table->bigInteger('money_id')->unsigned();
             $table->foreign('money_id')->references('id')->on('moneys')->onDelete('cascade');
             $table->bigInteger('user_id')->unsigned();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
+            $table->timestamps();
         });
     }
 

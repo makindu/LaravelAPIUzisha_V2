@@ -81,6 +81,7 @@ class TransfertstockController extends Controller
     }
 
     public function validation(Request $request){
+        return $request;
         $depositFrom=DepositController::find($request->deposit_sender_id);
         $depositTo=DepositController::find($request->deposit_receiver_id);
         //return $request;

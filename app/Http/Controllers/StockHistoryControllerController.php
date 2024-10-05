@@ -109,7 +109,9 @@ class StockHistoryControllerController extends Controller
         if($request['type']=='entry'){
             DB::update('update deposit_services set available_qte = available_qte + ? where service_id = ? and deposit_id = ?',[$request['quantity'],$request['service_id'],$request['depot_id']]);
             //calcul stock used by FIFO or LIFO method par ici... avant d'enregistrer le stock history
-
+                if(isset($request['price'])){
+                    $request['total']=$request['quantity']*$request['price'];
+                }
             return $this->show(StockHistoryController::create($request->all()));
         }else if($request['type']=='withdraw'){
 
@@ -126,6 +128,9 @@ class StockHistoryControllerController extends Controller
                     }
                 }
                 DB::update('update deposit_services set available_qte = available_qte - ? where service_id = ? and deposit_id = ?',[$request['quantity'],$request['service_id'],$request['depot_id']]);
+                if(isset($request['price'])){
+                    $request['total']=$request['quantity']*$request['price'];
+                }
                 return $this->show(StockHistoryController::create($request->all()));
             }
            
@@ -143,11 +148,14 @@ class StockHistoryControllerController extends Controller
      */
     public function show(StockHistoryController $stockHistoryController)
     {
-        return StockHistoryController::leftjoin('deposit_controllers as D','stock_history_controllers.depot_id','=','D.id')
+       $stock=StockHistoryController::leftjoin('deposit_controllers as D','stock_history_controllers.depot_id','=','D.id')
         ->leftjoin('services_controllers as S','stock_history_controllers.service_id','=','S.id')
         ->leftjoin('unit_of_measure_controllers as UOM','S.uom_id','=','UOM.id')
         ->leftjoin('users as U','stock_history_controllers.user_id','=','U.id')
         ->where('stock_history_controllers.id','=',$stockHistoryController['id'])->get(['stock_history_controllers.*','S.name as service_name','UOM.symbol as uom_symbol','D.name as deposit_name','U.user_name as done_by_name'])[0];
+        
+        $stock['total']=$stock['price']*$stock['quantity'];
+        return $stock; 
     }
 
     /**

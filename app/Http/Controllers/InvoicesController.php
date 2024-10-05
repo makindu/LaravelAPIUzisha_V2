@@ -2000,6 +2000,7 @@ public function withdrawadjust($depot_id, $quantity_withdraw,$price_withdraw, $o
             }
         }
 }
+
 public function profitCalculations($stockhistory, $operation_withdraw, $quantity_withdraw){
     $quantity_used_array= explode(";", $stockhistory->quantity_used);
     $price_used_array= explode(";", $stockhistory->price_used);

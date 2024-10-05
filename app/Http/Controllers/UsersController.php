@@ -14,12 +14,16 @@ use Illuminate\Http\Request;
 use App\Models\usersenterprise;
 use App\Models\affectation_users;
 use App\Models\Cautions;
+use App\Models\CustomerController;
 use App\Models\customerspointshistory;
 use App\Models\DebtPayments;
 use App\Models\DepositController;
 use App\Models\DepositsUsers;
+use App\Models\funds;
 use App\Models\money_conversion;
+use App\Models\moneys;
 use App\Models\passwordreset;
+use App\Models\wekamemberaccounts;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 use PHPMailer\PHPMailer\PHPMailer;
@@ -35,6 +39,49 @@ class UsersController extends Controller
             return $this->show(user::find($item['user_id']));
         });
         return $listdata;
+    }
+
+    public function members_validation(Request $request){
+        if ($request['criteria']==="all" && $request['enterprise_id']){
+            try{
+                $enterpriseUsers=usersenterprise::join('users','usersenterprises.user_id','users.id')
+                ->where('usersenterprises.enterprise_id','=',$request['enterprise_id'])
+                ->where('users.status','disabled')
+                ->select('usersenterprises.user_id')
+                ->get(['usersenterprises.*']);
+                $users=collect(user::whereIn('id',$enterpriseUsers->pluck('user_id'))->get());
+
+                $updatedusers=$users->map(function ($user){
+                    $user['status']="enabled";
+                    $user->save();
+
+                    $accountslist=collect(wekamemberaccounts::where('user_id',$user->id)
+                    ->where('account_status','disabled')
+                    ->get());
+                    if(($accountslist->count())>0){
+                        $accountslist->map(function ($account){
+                            $account['account_status']="enabled";
+                            $account->save();
+                        }) ;
+                    }
+                    return $user;
+                });
+
+                return response()->json([
+                    "status"=>200,
+                    "message"=>"success",
+                    "error"=>null,
+                    "data"=>$updatedusers->count()
+                ]);
+            }catch(Exception $e){
+                return response()->json([
+                    "status"=>500,
+                    "message"=>"error",
+                    "error"=>$e->getMessage(),
+                    "data"=>null
+                ]);
+            }
+        }
     }
 
     public function ifexistsemailadress(Request $request){
@@ -1003,6 +1050,101 @@ class UsersController extends Controller
     }
 
     /**
+     * Adding new member in the DB
+     */
+    public function newmember(Request $request){
+         //test if exists new user
+         $ifexists = user::join('usersenterprises as E','users.id','E.user_id')
+         ->where('user_name',$request['user_name'])
+         ->where('E.enterprise_id',$request->enterprise_id)->first();
+        if($ifexists){
+        return response()->json([
+        "status"=>400,
+        "message"=>"duplicated",
+        "error"=>null,
+        "data"=>null
+        ]);
+        }else{
+        // DB::beginTransaction();
+        try {
+        if(!$request['uuid']){
+            $request['uuid']=$this->getUuId('M','C');
+        }
+
+        $request['user_password']="wekaakiba-0123456789";
+        $newuser = user::create($request->all());
+        if($newuser){
+            usersenterprise::create([
+                'user_id'=>$newuser->id,
+                'enterprise_id'=>$request->enterprise_id
+            ]);
+
+            //create user as customer
+            $ascustomer = CustomerController::create([
+                    'created_by_id'=>$request->user_id,
+                    'customerName'=>$newuser->user_name,
+                    'phone'=>$newuser->user_phone,
+                    'mail'=>$newuser->user_mail,
+                    'type'=>'physique',
+                    'enterprise_id'=>$request->enterprise_id,
+                    'uuid'=>$newuser->uuid,
+                    'member_id'=>$newuser->id
+                ]);
+
+            $cdf=moneys::where('enterprise_id',$request->enterprise_id)->where('abreviation','CDF')->first();
+            $usd=moneys::where('enterprise_id',$request->enterprise_id)->where('abreviation','USD')->first();
+
+            $cdfFund=funds::create([
+                'sold'=>0,
+                'description'=>'Compte '.$newuser->user_name.' CDF',
+                'money_id'=>$cdf->id,
+                'user_id'=>$newuser->id,
+                'enterprise_id'=>$request->enterprise_id
+            ]);  
+            
+            $usdFund=funds::create([
+                'sold'=>0,
+                'description'=>'Compte '.$newuser->user_name.' USD',
+                'money_id'=>$usd->id,
+                'user_id'=>$newuser->id,
+                'enterprise_id'=>$request->enterprise_id
+            ]);
+
+            //funds creation
+            if(isset($request['deposit_id']) && !empty($request['deposit_id'])){
+                $deposit=DepositController::find($request['deposit_id']);
+                if ($deposit) {
+                    DepositsUsers::create([
+                        'deposit_id'=>$deposit['id'],
+                        'user_id'=>$newuser['id'],
+                        'level'=>'simple'
+                    ]);
+                }
+            }
+
+            $customerCtrl = new CustomerControllerController();
+            return response()->json([
+                "status"=>200,
+                "message"=>"success",
+                "error"=>null,
+                "data"=>$customerCtrl->show($ascustomer)
+            ]);
+        }
+
+        // DB::commit();
+        } catch (Exception $th) {
+        //    DB::rollBack();
+            return response()->json([
+                "status"=>500,
+                "message"=>"error occured",
+                "error"=>$th,
+                "data"=>null
+            ]);
+        }
+}
+    }
+
+    /**
      * Display the specified resource.
      *
      * @param  \App\Models\user  $user
@@ -1141,4 +1283,297 @@ class UsersController extends Controller
         }
         return ['message'=>$message,'user'=>$user,'enterprise'=>$actualEse,'defaultmoney'=>$this->defaultmoney($actualEse['id'])];
     }
+
+    /**
+     * WEKA AKIBA METHODS
+     */
+
+     public function wekamemberslist($enterprise_id){
+        $list=usersenterprise::join('users','usersenterprises.user_id','users.id')
+        ->where('usersenterprises.enterprise_id','=',$enterprise_id)
+        ->where('users.user_type','=','member')
+        ->paginate(20);
+        $listdata=$list->getCollection()->map(function ($item){
+            $accountctrl = new WekamemberaccountsController();
+            $member=$this->show(user::find($item['user_id']));
+            $member['accounts']=$accountctrl->allaccounts($member['id']);
+            return $member;
+        });
+        return $listdata;
+     }
+     
+     /**
+      * WEKA AKIBA MEMBERS TO VALIDATED
+      */
+      public function wekamemberstovalidate($enterprise_id){
+        $list=usersenterprise::join('users','usersenterprises.user_id','users.id')
+        ->where('usersenterprises.enterprise_id','=',$enterprise_id)
+        ->where('users.user_type','=','member')
+        ->where('users.status','disabled')
+        ->paginate(20);
+        $listdata=$list->getCollection()->transform(function ($item){
+            $accountctrl = new WekamemberaccountsController();
+            $member=$this->show(user::find($item['user_id']));
+            $member['accounts']=$accountctrl->allaccounts($member['id']);
+            return $member;
+        });
+        return $listdata;
+      }
+     
+     public function wekamemberslookup(Request $request){
+
+        if($request->keyword && !empty($request->keyword)){
+            $list=collect(usersenterprise::join('users','usersenterprises.user_id','users.id')
+            ->where('usersenterprises.enterprise_id','=',$request['enterprise_id'])
+            ->where('users.user_type','=','member')
+            ->where('users.full_name','LIKE',"%$request->keyword%")
+            ->limit(10)
+            ->get('usersenterprises.*'));
+        
+            $listdata=$list->map(function ($item){
+                return $this->show(user::find($item['user_id']));
+            });
+            return $listdata;
+        }else{
+            return [];
+        }
+      
+     } 
+     
+     public function wekasearchmembersbywords(Request $request){
+
+        $list=user::join('users','usersenterprises.user_id','users.id')
+        ->where('enterprise_id','=',$request['enterpriseid'])
+        ->where('full_name','LIKE',"%$request->word%")
+        ->orWhere('id','=',"$request->word")
+        ->orWhere('uuid','=',"$request->word")
+        ->limit(20)->get('users.*');
+
+        return $list;
+     }
+
+     public function newwekamember(Request $request){
+        $actualuser=$this->getinfosuser($request['created_by_id']);
+      
+        if($actualuser){
+            $actualese=$this->getEse($actualuser->id);
+            if($actualese){
+                 //test if exists new user
+            $ifexists = user::join('usersenterprises as E','users.id','E.user_id')
+            ->where('full_name','=',$request['full_name'])
+            ->where('E.enterprise_id',$actualese->id)->first();
+                if($ifexists){
+                    return response()->json([
+                        "status"=>500,
+                        "message"=>"error",
+                        "error"=>"duplicated member",
+                        "data"=>$ifexists
+                    ]); 
+                }else{
+                    try {
+                        $request['uuid']="GOM".date('Y').$this->EseNumberUsers($actualese->id);
+                        $request['user_name']="member".$this->EseNumberUsers($actualese->id);
+                        $request['user_password']="member".date('his').$this->EseNumberUsers($actualese->id);
+                        $newuser = user::create($request->all());
+                        if($newuser){
+                            usersenterprise::create([
+                                'user_id'=>$newuser->id,
+                                'enterprise_id'=>$actualese->id
+                            ]);
+        
+                            //create user as customer
+                            $ascustomer = CustomerController::create([
+                                    'created_by_id'=>$actualuser->id,
+                                    'customerName'=>$newuser->full_name,
+                                    'phone'=>$newuser->user_phone,
+                                    'mail'=>$newuser->user_mail,
+                                    'type'=>'physique',
+                                    'enterprise_id'=>$actualese->id,
+                                    'uuid'=>$newuser->uuid,
+                                    'member_id'=>$newuser->id
+                                ]);
+        
+                            $cdf=moneys::where('enterprise_id',$actualese->id)->where('abreviation','CDF')->first();
+                            $usd=moneys::where('enterprise_id',$actualese->id)->where('abreviation','USD')->first();
+        
+                            $cdfaccount=wekamemberaccounts::create([
+                                'sold'=>$request['soldecdf']?$request['soldecdf']:0,
+                                'description'=>'Compte '.$newuser->full_name.' CDF',
+                                'money_id'=>$cdf->id,
+                                'user_id'=>$newuser->id,
+                                'enterprise_id'=>$actualese->id,
+                                'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id)
+                            ]);  
+                            
+                            $usdaccount=wekamemberaccounts::create([
+                                'sold'=>$request['soldeusd']?$request['soldeusd']:0,
+                                'description'=>'Compte '.$newuser->full_name.' USD',
+                                'money_id'=>$usd->id,
+                                'user_id'=>$newuser->id,
+                                'enterprise_id'=>$actualese->id,
+                                'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id)
+                            ]);
+                        }
+
+                        
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "error"=>null,
+                        "data"=>$this->show($newuser)
+                    ]);
+                } catch (Exception $e) {
+                    return response()->json([
+                        "status"=>500,
+                        "message"=>"error",
+                        "error"=>$e->getMessage(),
+                        "data"=>null
+                    ]); 
+                } 
+                }
+               
+            }else{
+                return response()->json([
+                    "status"=>402,
+                    "message"=>"error",
+                    "error"=>"unknown enterprise",
+                    "data"=>null
+                ]); 
+            }
+        }else{
+            return response()->json([
+                "status"=>402,
+                "message"=>"error",
+                "error"=>"unknown user",
+                "data"=>null
+            ]);
+        }
+     }
+     public function wekaimportmembers(Request $request){
+        $actualuser=$this->getinfosuser($request->data['sentby']);
+        $actualese=$this->getEse($actualuser->id);
+        $allmembers=[];
+
+        foreach ($request->data['members'] as $key=> $membersent) {
+            $membersentupdated['note']="member";
+            $membersentupdated['status']="enabled";
+            $membersentupdated['user_type']="member";
+            $membersentupdated['user_password']="member".date('his').$key;
+            $membersentupdated['user_phone']=$membersent['phone']?$membersent['phone']:"";
+            $membersentupdated['user_mail']=$membersent['email']?$membersent['email']:"";
+            $membersentupdated['user_name']="member".date('his').$key;
+            $membersentupdated['full_name']=$membersent['fullname']?$membersent['fullname']:"";
+            $membersentupdated['uuid']=$membersent['uuid']?$membersent['uuid']:"";
+
+            //test if exists new user
+            $ifexists = user::join('usersenterprises as E','users.id','E.user_id')
+            ->where('full_name',$membersentupdated['full_name'])
+            ->where('E.enterprise_id',$actualese->id)->first();
+        if($ifexists){
+            
+        }else{
+            $newuser = user::create($membersentupdated);
+                if($newuser){
+                    usersenterprise::create([
+                        'user_id'=>$newuser->id,
+                        'enterprise_id'=>$actualese->id
+                    ]);
+
+                    //create user as customer
+                    $ascustomer = CustomerController::create([
+                            'created_by_id'=>$actualuser->id,
+                            'customerName'=>$newuser->full_name,
+                            'phone'=>$newuser->user_phone,
+                            'mail'=>$newuser->user_mail,
+                            'type'=>'physique',
+                            'enterprise_id'=>$actualese->id,
+                            'uuid'=>$newuser->uuid,
+                            'member_id'=>$newuser->id
+                        ]);
+
+                    $cdf=moneys::where('enterprise_id',$actualese->id)->where('abreviation','CDF')->first();
+                    $usd=moneys::where('enterprise_id',$actualese->id)->where('abreviation','USD')->first();
+
+                    $cdfaccount=wekamemberaccounts::create([
+                        'sold'=>$membersent['soldecdf']?$membersent['soldecdf']:0,
+                        'description'=>'Compte '.$newuser->full_name.' CDF',
+                        'money_id'=>$cdf->id,
+                        'user_id'=>$newuser->id,
+                        'enterprise_id'=>$actualese->id,
+                        'account_status'=>"enabled",
+                        'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id)
+                    ]);  
+                    
+                    $usdaccount=wekamemberaccounts::create([
+                        'sold'=>$membersent['soldeusd']?$membersent['soldeusd']:0,
+                        'description'=>'Compte '.$newuser->full_name.' USD',
+                        'money_id'=>$usd->id,
+                        'user_id'=>$newuser->id,
+                        'enterprise_id'=>$actualese->id,
+                        'account_status'=>"enabled",
+                        'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id)
+                    ]);
+                }
+                array_push($allmembers,$membersentupdated);
+            }
+        }
+
+        return $allmembers;
+     }
+
+     public function usersbytypes(Request $request){
+        $listdata=[];
+        if($request['usertype']=="collectors"){
+            $list=usersenterprise::join('users','usersenterprises.user_id','users.id')
+            ->where('usersenterprises.enterprise_id','=',$request['enterprise_id'])
+            ->where('users.collector','=',true)
+            ->paginate(20);
+            $listdata=$list->getCollection()->map(function ($item){
+                $accountctrl = new WekamemberaccountsController();
+                $member=$this->show(user::find($item['user_id']));
+                $member['accounts']=$accountctrl->allaccounts($member['id']);
+                return $member;
+            });
+        }
+    
+        return $listdata;
+     }
+
+     public function membertocollectors(Request $request){
+        if($request['members'] && count($request['members'])>0){
+            try{
+                $succeded=[];
+                foreach($request['members'] as $member){
+                    $memberinfos=user::find($member['id']);
+                    if($memberinfos){
+                        $memberinfos['collector']=true;
+                        $memberinfos->save();
+
+                        array_push($succeded,$this->show($memberinfos));
+                    }
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "error"=>null,
+                        "data"=>$succeded
+                    ]);
+                }
+            }catch(Exception $e){
+                return response()->json([
+                    "status"=>500,
+                    "message"=>"error",
+                    "error"=>$e->getMessage(),
+                    "data"=>null
+                ]); 
+            }
+        }else{
+            return response()->json([
+                "status"=>402,
+                "message"=>"error",
+                "error"=>"members not sent",
+                "data"=>null
+            ]);
+        }
+     
+     }
 }

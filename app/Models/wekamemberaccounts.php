@@ -15,6 +15,7 @@ class wekamemberaccounts extends Model
         'account_status',
         'money_id',
         'user_id',
+        'account_number',
         'enterprise_id',
     ];
 }

@@ -15,7 +15,7 @@ class WekamemberaccountsController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index($enterprise)
     {
         //
     }
@@ -104,6 +104,10 @@ class WekamemberaccountsController extends Controller
        return wekamemberaccounts::leftjoin('users as U', 'wekamemberaccounts.user_id','=','U.id')
         ->leftjoin('moneys as M', 'wekamemberaccounts.money_id','=','M.id')
         ->where('wekamemberaccounts.id',$wekamemberaccounts->id)->first(['M.abreviation as money_abreviation', 'U.user_name', 'wekamemberaccounts.*']);
+    }
+
+    public function membersaccounts($member){
+        
     }
 
     /**

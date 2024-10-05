@@ -16,8 +16,14 @@ class wekaAccountsTransactions extends Model
     'motif',
     'user_id',
     'member_account_id',
+    'member_id',
     'enterprise_id',
     'done_at',
     'account_id',
+    'operation_done_by',
+    'uuid',
+    'fees',
+    'transaction_status',
+    'sync_status'
     ];
 }

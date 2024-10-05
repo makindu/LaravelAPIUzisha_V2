@@ -8,6 +8,7 @@ use App\Models\requestHistory;
 use App\Http\Requests\StorefundsRequest;
 use App\Http\Requests\UpdatefundsRequest;
 use App\Models\decision_team;
+use Exception;
 use Illuminate\Support\Facades\DB;
 
 class FundsController extends Controller
@@ -222,7 +223,7 @@ class FundsController extends Controller
         if (isset($request->user_id)) {
             $actualuser=$this->getinfosuser($request->user_id);
             if ($actualuser) {
-                $ese=$this->getEse($request->user_id);
+                $ese=$this->getEse($actualuser->id);
                 if ($ese) {
                     if ($actualuser['user_type']!=='super_admin') {
                         $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
@@ -282,11 +283,11 @@ class FundsController extends Controller
                                 "error"=>null,
                                 "data"=>$histories
                             ]);
-                        } catch (\Throwable $th) {
+                        } catch (Exception $th) {
                             return response()->json([
                                 "status"=>500,
                                 "message"=>"error occured",
-                                "error"=>$th,
+                                "error"=>$th->getMessage(),
                                 "data"=>null
                             ]);
                         }

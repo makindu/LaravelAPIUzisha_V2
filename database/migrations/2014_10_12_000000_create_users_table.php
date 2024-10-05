@@ -26,6 +26,8 @@ class CreateUsersTable extends Migration
             $table->integer('permissions')->nullable();
             $table->string('note')->nullable();
             $table->string('avatar')->nullable();
+            $table->string('pin')->default('0000')->max(4);
+            $table->boolean('collector')->default(false);
             $table->rememberToken();
             $table->timestamps();
         });
