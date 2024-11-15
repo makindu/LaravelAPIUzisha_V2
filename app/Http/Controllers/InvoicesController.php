@@ -35,6 +35,7 @@ use App\Models\licences;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use stdClass;
+use Exception;
 
 class InvoicesController extends Controller
 {
@@ -1687,6 +1688,8 @@ class InvoicesController extends Controller
           $invoice=Invoices::create($request->all());
           $ese=$this->getEse($request['edited_by_id']);
           $fidelitymode=$ese['fidelitydefaultmode'];
+          $fidelitypointvalue=$ese['fidelitypointvalue'];
+          $fidelityinitvalue=$ese['initvaluefidelity'];
 
           //enregistrement des details
           if(isset($request->details)){
@@ -1743,7 +1746,7 @@ class InvoicesController extends Controller
 
           if($invoice['type_facture']=='point' &&  $invoice['customer_id']>0){
               $count=$invoice['netToPay'];
-              $constant=5;
+              $constant=$fidelityinitvalue;
               $point=$count/$constant;
 
               $customer=CustomerController::find($invoice['customer_id']);
@@ -1782,9 +1785,8 @@ class InvoicesController extends Controller
 
           if($fidelitymode=='point' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
               $count=$invoice['netToPay'];
-              $constant=5;
+              $constant=$fidelityinitvalue;
               if($count>=$constant){
-
                       $customer=CustomerController::find($invoice['customer_id']);
                       $point=($count/$constant);
                       // number_format();
@@ -1895,10 +1897,10 @@ class InvoicesController extends Controller
 
                    }
                    DB::commit();
-                   } catch (\Throwable $th) {
+                   } catch (Exception $th) {
 
                    DB::rollBack();
-                   return "Error ".$th;
+                   return "Error ".$th->getMessage();
                                            //throw $th;
                    }
 
@@ -2084,6 +2086,9 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
             $invoice=Invoices::create($request->all());
             $ese=$this->getEse($request['edited_by_id']);
             $fidelitymode=$ese['fidelitydefaultmode'];
+            $fidelitypointvalue=$ese['fidelitypointvalue'];
+            $fidelityinitvalue=$ese['initvaluefidelity'];
+
            
             //enregistrement des details
             if(isset($request->details)){
@@ -2133,12 +2138,11 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
                 }
             }
 
-           
-           
             if($invoice['type_facture']=='point' &&  $invoice['customer_id']>0){
                 $count=$invoice['netToPay'];
-                $constant=5;
-                $point=$count/$constant;
+                // $count = 0.5;
+                $constant=$fidelityinitvalue ;
+                $point=$count/$constant ;
 
                 $customer=CustomerController::find($invoice['customer_id']);
 
@@ -2147,7 +2151,7 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
 
             if($fidelitymode=='point' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
                 $count=$invoice['netToPay'];
-                $constant=5;
+                $constant=$fidelityinitvalue;
                 if($count>=$constant){
                     
                         $customer=CustomerController::find($invoice['customer_id']);
@@ -2241,6 +2245,9 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
         $invoice=Invoices::create($request->all());
         $ese=$this->getEse($request['edited_by_id']);
         $fidelitymode=$ese['fidelitydefaultmode'];
+        $fidelitypointvalue=$ese['fidelitypointvalue'];
+        $fidelityinitvalue=$ese['initvaluefidelity'];
+
        
         //enregistrement des details
         if(isset($request->details)){
@@ -2280,7 +2287,7 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
        
         if($invoice['type_facture']=='point' &&  $invoice['customer_id']>0){
             $count=$invoice['netToPay'];
-            $constant=5;
+            $constant=$fidelityinitvalue;
             $point=$count/$constant;
 
             $customer=CustomerController::find($invoice['customer_id']);
@@ -2290,7 +2297,7 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
 
         if($fidelitymode=='point' && $invoice['type_facture']=='cash' && $invoice['customer_id']>0){
             $count=$invoice['netToPay'];
-            $constant=5;
+            $constant=$fidelityinitvalue;
             if($count>=$constant){
                 
                     $customer=CustomerController::find($invoice['customer_id']);
@@ -2469,10 +2476,11 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
         $invoice=Invoices::leftjoin('customer_controllers as C', 'invoices.customer_id','=','C.id')
         ->leftjoin('moneys as M', 'invoices.money_id','=','M.id')
         ->leftjoin('users as U', 'invoices.edited_by_id','=','U.id')
+        ->leftjoin('users as collectors','invoices.collector_id','=','collectors.id')
         ->leftjoin('tables as T', 'invoices.table_id','=','T.id')
         ->leftjoin('servants as S', 'invoices.servant_id','=','S.id')
         ->where('invoices.id', '=', $invoices->id)
-        ->get(['T.id as table_id','T.name as table_name','S.id as servant_id','S.name as servant_name','M.abreviation','M.money_name','U.user_name','U.full_name','C.totalpoints','C.totalbonus','C.totalcautions','C.phone','C.mail','C.adress','C.customerName as customer_name','invoices.*'])->first();
+        ->get(['collectors.full_name as collector_name','collectors.user_name as collector_user_name','T.id as table_id','T.name as table_name','S.id as servant_id','S.name as servant_name','M.abreviation','M.money_name','U.user_name','U.full_name','C.totalpoints','C.totalbonus','C.totalcautions','C.phone','C.mail','C.adress','C.customerName as customer_name','invoices.*'])->first();
 
         $debt=Debts::join('invoices as I','debts.invoice_id','=','I.id')
         ->leftjoin('moneys as M','I.money_id','=','M.id')
@@ -2482,9 +2490,7 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
         if(count($debt)>0){
             $payments=DebtPayments::where('debt_payments.debt_id', '=', $debt[0]['id'])->get();
         }
-       
-      
-        // return ['invoice'=>$invoice,'details'=>$details];
+    
         return ['invoice'=>$invoice,'details'=>$details,'debt'=>$debt,'payments'=>$payments];
     }
 

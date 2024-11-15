@@ -24,6 +24,8 @@ class wekaAccountsTransactions extends Model
     'uuid',
     'fees',
     'transaction_status',
-    'sync_status'
+    'sync_status',
+    'phone',
+    'adresse'
     ];
 }

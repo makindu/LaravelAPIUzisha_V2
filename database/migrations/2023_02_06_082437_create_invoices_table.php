@@ -44,6 +44,7 @@ class CreateInvoicesTable extends Migration
             $table->double('netToPay')->nullable();
             $table->dateTimeTz('done_at')->nullable();
             $table->date('date_operation')->nullable();
+            $table->integer('collector_id')->nullable();
             $table->timestamps();
         });
     }

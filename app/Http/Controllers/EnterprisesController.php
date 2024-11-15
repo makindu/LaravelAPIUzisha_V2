@@ -39,7 +39,12 @@ class EnterprisesController extends Controller
      */
     public function index()
     {
-        return Enterprises::all();
+        $list=collect(Enterprises::all());
+        $listdata=$list->transform(function ($ese){
+            return $this->show($ese);
+        });
+
+        return $listdata;
     }
 
     /**
@@ -334,7 +339,10 @@ class EnterprisesController extends Controller
      */
     public function show(Enterprises $enterprises)
     {
-       return Enterprises::find($enterprises);
+
+       return Enterprises::join('users','enterprises.user_id','=','users.id')
+                    ->where('enterprises.id',$enterprises->id)
+                    ->get(['enterprises.*','users.user_name','users.user_mail','users.user_phone','users.full_name'])->first();
     }
 
     public function getone($enterpriseId){

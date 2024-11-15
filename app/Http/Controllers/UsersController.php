@@ -23,6 +23,7 @@ use App\Models\funds;
 use App\Models\money_conversion;
 use App\Models\moneys;
 use App\Models\passwordreset;
+use App\Models\wekafirstentries;
 use App\Models\wekamemberaccounts;
 use Illuminate\Support\Facades\DB;
 use stdClass;
@@ -34,7 +35,8 @@ class UsersController extends Controller
 {
     public function index($enterprise_id)
     {
-        $list=collect(usersenterprise::where('enterprise_id','=',$enterprise_id)->get());
+        $list=collect(usersenterprise::join('users','usersenterprises.id','=','users.id')
+        ->where('enterprise_id','=',$enterprise_id)->where('users.user_type','<>','member')->get(['usersenterprises.*']));
         $listdata=$list->map(function ($item){
             return $this->show(user::find($item['user_id']));
         });
@@ -215,6 +217,8 @@ class UsersController extends Controller
         $accounts=[];
         $debts=[];
 
+        $nbrmembersaccountstovalidate=0;
+
         if ($user) {
             if (empty($request['from']) && empty($request['to'])) {
                 $request['from']=date('Y-m-d');
@@ -223,6 +227,12 @@ class UsersController extends Controller
             
             //getting data for the Super Admin
             if ($user['user_type']=='super_admin') {
+                //members activations
+                $listmemberstoactivate=usersenterprise::join('users','usersenterprises.user_id','users.id')
+                ->where('usersenterprises.enterprise_id','=',$ese['id'])
+                ->where('users.user_type','=','member')
+                ->where('users.status','disabled')->get();
+                $nbrmembersaccountstovalidate=$listmemberstoactivate->count();
                 //fidelity report
 
                 //Points bloc
@@ -570,7 +580,7 @@ class UsersController extends Controller
           $msg="not fund";
         }
         
-        return ['totalEntriesCautions'=>$totalEntriesCautions,'totalSellByCautions'=>$totalSellByCautions,'totalSellByBonus'=>$totalSellByBonus,'totalEntriesBonus'=>$totalEntriesBonus,'totalSellBypoints'=>$totalSellBypoints,'totalEntriesPoints'=>$totalEntriesPoints,'total_accounts'=>$total_account_entries+$total_account_expenditures,'default_money'=>$defautmoney,'from'=>$request['from'],'to'=>$request['to'],'message'=>$msg,'total_cash'=>$total_cash,'total_credits'=>$total_credits,'total_entries'=>$total_entries,'total_expenditures'=>$total_expenditures,'total_fences'=>$total_fences,'total_debts'=>$total_debts,'cash'=>$cash,'credits'=>$credits,'expenditures'=>$expenditures,'entries'=>$entries,'fences'=>$fences,'debts'=>$debts,'accounts'=>$accounts];
+        return ['nbrmembersaccountstovalidate'=>$nbrmembersaccountstovalidate,'totalEntriesCautions'=>$totalEntriesCautions,'totalSellByCautions'=>$totalSellByCautions,'totalSellByBonus'=>$totalSellByBonus,'totalEntriesBonus'=>$totalEntriesBonus,'totalSellBypoints'=>$totalSellBypoints,'totalEntriesPoints'=>$totalEntriesPoints,'total_accounts'=>$total_account_entries+$total_account_expenditures,'default_money'=>$defautmoney,'from'=>$request['from'],'to'=>$request['to'],'message'=>$msg,'total_cash'=>$total_cash,'total_credits'=>$total_credits,'total_entries'=>$total_entries,'total_expenditures'=>$total_expenditures,'total_fences'=>$total_fences,'total_debts'=>$total_debts,'cash'=>$cash,'credits'=>$credits,'expenditures'=>$expenditures,'entries'=>$entries,'fences'=>$fences,'debts'=>$debts,'accounts'=>$accounts];
     }
 
     /**
@@ -603,6 +613,9 @@ class UsersController extends Controller
         $accounts=[];
         $debts=[];
 
+        $nbrmembersaccountstovalidate=0;
+        $nbrfirstentries=0;
+
         if ($user) {
             if (empty($request['from']) && empty($request['to'])) {
                 $request['from']=date('Y-m-d');
@@ -611,6 +624,18 @@ class UsersController extends Controller
             
             //getting data for the Super Admin
             if ($user['user_type']=='super_admin') {
+                  //members activations
+                  $listmemberstoactivate=usersenterprise::join('users','usersenterprises.user_id','users.id')
+                  ->where('usersenterprises.enterprise_id','=',$ese['id'])
+                  ->where('users.user_type','=','member')
+                  ->where('users.status','disabled')->get();
+                  $nbrmembersaccountstovalidate=$listmemberstoactivate->count();
+
+                //first entries
+                $listfirstentries=wekafirstentries::where('enterprise_id',$ese['id'])
+                                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->get();
+                $nbrfirstentries=$listfirstentries->count();
                 //fidelity report
 
                 //Points bloc
@@ -960,7 +985,7 @@ class UsersController extends Controller
           $msg="not fund";
         }
         
-        return ['message2'=>'dashboard2','totalEntriesCautions'=>$totalEntriesCautions,'totalSellByCautions'=>$totalSellByCautions,'totalSellByBonus'=>$totalSellByBonus,'totalEntriesBonus'=>$totalEntriesBonus,'totalSellBypoints'=>$totalSellBypoints,'totalEntriesPoints'=>$totalEntriesPoints,'total_accounts'=>$total_account_entries+$total_account_expenditures,'default_money'=>$defautmoney,'from'=>$request['from'],'to'=>$request['to'],'message'=>$msg,'total_cash'=>$total_cash,'total_credits'=>$total_credits,'total_entries'=>$total_entries,'total_expenditures'=>$total_expenditures,'total_fences'=>$total_fences,'total_debts'=>$total_debts,'cash'=>$cash,'credits'=>$credits,'expenditures'=>$expenditures,'entries'=>$entries,'fences'=>$fences,'debts'=>$debts,'accounts'=>$accounts];
+        return ['nbrfirstentries'=>$nbrfirstentries,'nbrmembersaccountstovalidate'=>$nbrmembersaccountstovalidate,'message2'=>'dashboard2','totalEntriesCautions'=>$totalEntriesCautions,'totalSellByCautions'=>$totalSellByCautions,'totalSellByBonus'=>$totalSellByBonus,'totalEntriesBonus'=>$totalEntriesBonus,'totalSellBypoints'=>$totalSellBypoints,'totalEntriesPoints'=>$totalEntriesPoints,'total_accounts'=>$total_account_entries+$total_account_expenditures,'default_money'=>$defautmoney,'from'=>$request['from'],'to'=>$request['to'],'message'=>$msg,'total_cash'=>$total_cash,'total_credits'=>$total_credits,'total_entries'=>$total_entries,'total_expenditures'=>$total_expenditures,'total_fences'=>$total_fences,'total_debts'=>$total_debts,'cash'=>$cash,'credits'=>$credits,'expenditures'=>$expenditures,'entries'=>$entries,'fences'=>$fences,'debts'=>$debts,'accounts'=>$accounts];
     }
     
     /**
@@ -1072,6 +1097,7 @@ class UsersController extends Controller
         }
 
         $request['user_password']="wekaakiba-0123456789";
+        $request['status']="enabled";
         $newuser = user::create($request->all());
         if($newuser){
             usersenterprise::create([
@@ -1320,13 +1346,36 @@ class UsersController extends Controller
         return $listdata;
       }
      
-     public function wekamemberslookup(Request $request){
+     public function agentsearch(Request $request){
 
         if($request->keyword && !empty($request->keyword)){
             $list=collect(usersenterprise::join('users','usersenterprises.user_id','users.id')
             ->where('usersenterprises.enterprise_id','=',$request['enterprise_id'])
+            ->where('users.full_name','LIKE',"%$request->keyword%")
+            ->orWhere('users.uuid','LIKE',"%$request->keyword%")
+            ->orWhere('users.user_name','LIKE',"%$request->keyword%")
+            ->limit(10)
+            ->get('usersenterprises.*'));
+        
+            $listdata=$list->map(function ($item){
+                return $this->show(user::find($item['user_id']));
+            });
+            return $listdata;
+        }else{
+            return [];
+        }
+      
+     }
+     
+     public function wekamemberslookup(Request $request){
+
+        if($request->keyword && !empty($request->keyword)){
+            $list=collect(usersenterprise::join('users','usersenterprises.user_id','users.id')
+            // ->leftjoin('wekamemberaccounts','usersenterprises.user_id','=','wekamemberaccounts.user_id')
+            ->where('usersenterprises.enterprise_id','=',$request['enterprise_id'])
             ->where('users.user_type','=','member')
             ->where('users.full_name','LIKE',"%$request->keyword%")
+            ->orWhere('users.uuid','LIKE',"%$request->keyword%")
             ->limit(10)
             ->get('usersenterprises.*'));
         
@@ -1346,13 +1395,14 @@ class UsersController extends Controller
         ->where('enterprise_id','=',$request['enterpriseid'])
         ->where('full_name','LIKE',"%$request->word%")
         ->orWhere('id','=',"$request->word")
-        ->orWhere('uuid','=',"$request->word")
+        ->orWhere('uuid','LIKE',"%$request->word%")
         ->limit(20)->get('users.*');
 
         return $list;
      }
 
      public function newwekamember(Request $request){
+        $customerctrl= new CustomerControllerController();
         $actualuser=$this->getinfosuser($request['created_by_id']);
       
         if($actualuser){
@@ -1374,6 +1424,7 @@ class UsersController extends Controller
                         $request['uuid']="GOM".date('Y').$this->EseNumberUsers($actualese->id);
                         $request['user_name']="member".$this->EseNumberUsers($actualese->id);
                         $request['user_password']="member".date('his').$this->EseNumberUsers($actualese->id);
+                        $request['status']="enabled";
                         $newuser = user::create($request->all());
                         if($newuser){
                             usersenterprise::create([
@@ -1402,7 +1453,8 @@ class UsersController extends Controller
                                 'money_id'=>$cdf->id,
                                 'user_id'=>$newuser->id,
                                 'enterprise_id'=>$actualese->id,
-                                'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id)
+                                'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id),
+                                'account_status'=>"enabled"
                             ]);  
                             
                             $usdaccount=wekamemberaccounts::create([
@@ -1411,17 +1463,23 @@ class UsersController extends Controller
                                 'money_id'=>$usd->id,
                                 'user_id'=>$newuser->id,
                                 'enterprise_id'=>$actualese->id,
-                                'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id)
+                                'account_number'=>"CP".date('Y').$this->EseNumberAccounts($actualese->id),
+                                'account_status'=>"enabled"
                             ]);
                         }
 
-                        
+                      if($request['returned'] && $request['returned']==='customer'){
+                        $datatoreturn=$customerctrl->show($ascustomer);
+                      }else{
+                        $datatoreturn=$this->show($newuser);
+                      }  
                     return response()->json([
                         "status"=>200,
                         "message"=>"success",
                         "error"=>null,
-                        "data"=>$this->show($newuser)
+                        "data"=>$datatoreturn
                     ]);
+
                 } catch (Exception $e) {
                     return response()->json([
                         "status"=>500,

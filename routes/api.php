@@ -80,6 +80,7 @@ use App\Http\Controllers\CategoriesServicesControllerController;
 use App\Http\Controllers\ReservationsController;
 use App\Http\Controllers\WekaAccountsTransactionsController;
 use App\Http\Controllers\WekafirstentriesController;
+use App\Http\Controllers\WekagroupsController;
 use App\Http\Controllers\WekamemberaccountsController;
 
 /*
@@ -110,6 +111,7 @@ Route::get('/getuser',[UsersController::class,'getone']);
 Route::post('/users/dashboard/{id}',[UsersController::class,'dashboardBasedDateOperation']);
 Route::post('/users/makeassuperadmin',[UsersController::class,'makeassuperadmin']);
 Route::post('/users/resetpassword',[UsersController::class,'ifexistsemailadress']);
+Route::post('/users/search',[UsersController::class,'agentsearch']);
 
 //Funds
 Route::get('/funds/mines/{id}', [FundsController::class,'mines']);
@@ -370,6 +372,7 @@ Route::delete('/providers/delete/{id}',[ProviderControllerController::class,'del
 Route::get('/providers/stockhistory/{id}',[ProviderControllerController::class,'stockhistory']);
 Route::get('/providers/stockhistory/cash/{id}',[ProviderControllerController::class,'cashstockhistory']);
 Route::get('/providers/stockhistory/debt/{id}',[ProviderControllerController::class,'debtstockhistory']);
+Route::post('/providers/importation',[ProviderControllerController::class,'importation']);
 
 //tables
 Route::apiResource('tables',TablesController::class);
@@ -667,9 +670,11 @@ Route::post('/weka/import/members',[UsersController::class,'wekaimportmembers'])
 Route::get('/weka/users/enterprise/{id}',[UsersController::class,'wekamemberslist']);
 Route::get('/weka/members-to-validated/enterprise/{id}',[UsersController::class,'wekamemberstovalidate']);
 Route::post('/weka/members/lookup',[UsersController::class,'wekamemberslookup']);
+
 Route::post('/weka/transactions/new',[WekaAccountsTransactionsController::class,'store']);
 Route::post('/weka/transactions/syncing',[WekaAccountsTransactionsController::class,'syncing']);
 Route::post('/weka/transactions',[WekaAccountsTransactionsController::class,'index']);
+Route::post('/weka/transactions/update',[WekaAccountsTransactionsController::class,'updatetransactions']);
 
 Route::post('/weka/members/newmember',[UsersController::class,'newwekamember']);
 Route::post('/weka/firstentries',[WekafirstentriesController::class,'index']);
@@ -678,4 +683,13 @@ Route::post('/weka/members-validation',[UsersController::class,'members_validati
 Route::post('/weka/usersbytypes/enterprise',[UsersController::class,'usersbytypes']);
 Route::post('/users/membertocollectors',[UsersController::class,'membertocollectors']);
 
+
+Route::post('/weka/groups',[WekagroupsController::class,'index']);
+Route::post('/weka/groupes/new',[WekagroupsController::class,'store']);
+Route::post('/weka/groups/update/{id}',[WekagroupsController::class,'update']);
+Route::post('/weka/groups/addmembers',[WekagroupsController::class,'addmembers']);
+Route::get('/weka/groups/members/{id}',[WekagroupsController::class,'getmembers']);
+Route::post('/weka/groups/removemembers',[WekagroupsController::class,'removemembers']);
+Route::post('/weka/groups/memberslevel',[WekagroupsController::class,'memberslevel']);
+Route::post('/weka/groups/memberslookup',[WekagroupsController::class,'memberslookup']);
 

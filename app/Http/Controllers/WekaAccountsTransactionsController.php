@@ -6,6 +6,7 @@ use App\Models\wekaAccountsTransactions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorewekaAccountsTransactionsRequest;
 use App\Http\Requests\UpdatewekaAccountsTransactionsRequest;
+use App\Models\User;
 use App\Models\wekamemberaccounts;
 use Exception;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class WekaAccountsTransactionsController extends Controller
      */
     public function index(Request $request)
     {
+        // return $request;
         $list=[];
         if(isset($request->from)==false && empty($request->from) && isset($request->to)==false && empty($request->to)){
             $request['from']= date('Y-m-d');
@@ -33,10 +35,130 @@ class WekaAccountsTransactionsController extends Controller
                 if ($ese) {
                     if ($actualuser['user_type']=='super_admin') {
                         //report for super admin users
+                        if(isset($request['criteria']) && !empty($request['criteria'])){
+                            return $this->reportTransactionsgroupebBy($request);
+                        }else{
+                            try {
+
+                                if (isset($request['members']) && count($request['members'])>0) {
+    
+                                    $list1=collect(wekaAccountsTransactions::whereIn('member_id',$request['members'])
+                                    ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                    ->get());
+                                    $list=$list1->transform(function($item){
+                                        return $this->show($item);
+                                    });
+                        
+                                    return response()->json([
+                                        "status"=>200,
+                                        "message"=>"success",
+                                        "error"=>null,
+                                        "data"=>$list
+                                    ]);
+                                }  
+                                
+                                if (isset($request['cashiers']) && count($request['cashiers'])>0) {
+    
+                                    $list1=collect(wekaAccountsTransactions::whereIn('user_id',$request['cashiers'])
+                                    ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                    ->get());
+                                    $list=$list1->transform(function($item){
+                                        return $this->show($item);
+                                    });
+                        
+                                    return response()->json([
+                                        "status"=>200,
+                                        "message"=>"success",
+                                        "error"=>null,
+                                        "data"=>$list
+                                    ]);
+                                } 
+                                
+                                if (isset($request['moneys']) && count($request['moneys'])>0) {
+    
+                                    $list1=collect(wekaAccountsTransactions::join('wekamemberaccounts','weka_accounts_transactions.member_account_id','=','wekamemberaccounts.id')
+                                    ->whereIn('wekamemberaccounts.money_id',$request['moneys'])
+                                    ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                    ->get());
+                                    $list=$list1->transform(function($item){
+                                        return $this->show($item);
+                                    });
+                        
+                                    return response()->json([
+                                        "status"=>200,
+                                        "message"=>"success",
+                                        "error"=>null,
+                                        "data"=>$list
+                                    ]);
+                                }
+    
+                                $list1=collect(wekaAccountsTransactions::where('enterprise_id',$request['enterprise_id'])
+                                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->get());
+                                $list=$list1->transform(function($item){
+                                    return $this->show($item);
+                                });
+                    
+                                return response()->json([
+                                    "status"=>200,
+                                    "message"=>"success",
+                                    "error"=>null,
+                                    "data"=>$list
+                                ]);
+                            } catch (Exception $th) {
+                                return response()->json([
+                                    "status"=>500,
+                                    "message"=>"error",
+                                    "error"=>$th->getMessage(),
+                                    "data"=>null
+                                ]);
+                            }
+                        }
+                    }else{
+                        //report for no super admin users
                         try {
+
                             if (isset($request['members']) && count($request['members'])>0) {
 
                                 $list1=collect(wekaAccountsTransactions::whereIn('member_id',$request['members'])
+                                ->where('user_id',$actualuser->id)
+                                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->get());
+                                $list=$list1->transform(function($item){
+                                    return $this->show($item);
+                                });
+                    
+                                return response()->json([
+                                    "status"=>200,
+                                    "message"=>"success",
+                                    "error"=>null,
+                                    "data"=>$list
+                                ]);
+                            }  
+                            
+                            if (isset($request['cashiers']) && count($request['cashiers'])>0) {
+
+                                $list1=collect(wekaAccountsTransactions::whereIn('user_id',$request['cashiers'])
+                                ->where('user_id',$actualuser->id)
+                                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->get());
+                                $list=$list1->transform(function($item){
+                                    return $this->show($item);
+                                });
+                    
+                                return response()->json([
+                                    "status"=>200,
+                                    "message"=>"success",
+                                    "error"=>null,
+                                    "data"=>$list
+                                ]);
+                            } 
+                            
+                            if (isset($request['moneys']) && count($request['moneys'])>0) {
+
+                                $list1=collect(wekaAccountsTransactions::join('wekamemberaccounts','weka_accounts_transactions.member_account_id','=','wekamemberaccounts.id')
+                                ->where('weka_accounts_transactions.user_id',$actualuser->id)
+                                ->whereIn('wekamemberaccounts.money_id',$request['moneys'])
                                 ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                                 ->get());
                                 $list=$list1->transform(function($item){
@@ -52,6 +174,7 @@ class WekaAccountsTransactionsController extends Controller
                             }
 
                             $list1=collect(wekaAccountsTransactions::where('enterprise_id',$request['enterprise_id'])
+                            ->where('user_id',$actualuser->id)
                             ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
                             ->get());
                             $list=$list1->transform(function($item){
@@ -72,8 +195,6 @@ class WekaAccountsTransactionsController extends Controller
                                 "data"=>null
                             ]);
                         }
-                    }else{
-                        //report for no super admin users
                     }
                 }else{
                     return response()->json([
@@ -100,6 +221,170 @@ class WekaAccountsTransactionsController extends Controller
                 "error"=>"user not sent",
                 "data"=>null
             ]);
+        }
+    }
+
+    /**
+     *Report transactions grouped by  
+     */
+    public function reportTransactionsgroupebBy(Request $request){
+        try {
+            switch ($request['criteria']) {
+                case 'cashiers':
+                    $list1=collect(wekaAccountsTransactions::where('enterprise_id',$request['enterprise_id'])
+                    ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->select('user_id')
+                    ->groupBy('user_id')
+                    ->get());
+                    $list=$list1->transform(function($item) use($request){
+                       $cashier=User::find($item['user_id']);
+
+                      $transactions=collect(wekaAccountsTransactions::where('enterprise_id',$request['enterprise_id'])
+                      ->where('user_id',$cashier->id)
+                      ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                      ->get());
+                      $transactions=$transactions->transform(function($transaction){
+                          return $this->show($transaction);
+                      });
+                        $grouped =$transactions->groupBy('abreviation');
+                        $grouped->all();
+                      $cashier['transactions']=$transactions;
+                      return $cashier;
+                        // return $this->show($item);
+                    });
+        
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "from"=>$request['from'],
+                        "to"=>$request['to'],
+                        "error"=>null,
+                        "data"=>$list
+                    ]);
+                    break;
+                    
+                    case 'moneys':
+                    $list1=collect(wekaAccountsTransactions::where('enterprise_id',$request['enterprise_id'])
+                    ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                    ->select('user_id')
+                    ->groupBy('user_id')
+                    ->get());
+                    $list=$list1->transform(function($item) use($request){
+                       $cashier=User::find($item['user_id']);
+
+                      $transactions=collect(wekaAccountsTransactions::where('enterprise_id',$request['enterprise_id'])
+                      ->where('user_id',$cashier->id)
+                      ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                      ->get());
+                      $transactions=$transactions->transform(function($transaction){
+                          return $this->show($transaction);
+                      });
+                        $grouped =$transactions->groupBy('abreviation');
+                        $grouped->all();
+                      $cashier['transactions']=$transactions;
+                      return $cashier;
+                        // return $this->show($item);
+                    });
+        
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "from"=>$request['from'],
+                        "to"=>$request['to'],
+                        "error"=>null,
+                        "data"=>$list
+                    ]);
+                    break;
+                
+                default:
+                    # code...
+                    break;
+            }
+           
+          
+        } catch (Exception $th) {
+            return response()->json([
+                "status"=>500,
+                "message"=>"error",
+                "error"=>$th->getMessage(),
+                "data"=>null
+            ]);
+        }
+    }
+
+    /**
+     * Transactions update
+     */
+    public function updatetransactions(Request $request){
+        $savedtransactions=[];
+        if ($request['user']) {
+            $actualuser=user::find($request['user']['id']);
+            if ($actualuser && $actualuser['user_type']=="super_admin") {
+                try {
+                    DB::beginTransaction();
+                    foreach ($request['data'] as $transaction) {
+                        $transactionupdated=wekaAccountsTransactions::find($transaction['id']);
+                        $memberaccount=wekamemberaccounts::find($transactionupdated['member_account_id']);
+                        if ($transactionupdated && $transactionupdated['transaction_status']="pending") {
+                            if ($memberaccount) {
+                                //if the account is enabled
+                                if($memberaccount->account_status=="enabled"){
+                                    if ($transactionupdated['type']=="deposit") {
+                                        $memberaccountupdated=$memberaccount;
+                                        $memberaccountupdated->sold=$memberaccount->sold+$transactionupdated['amount'];
+                                        $memberaccountupdated->save();
+                                        //update transaction
+                                        $transactionupdated['transaction_status']="validated";
+                                        $transactionupdated->save();   
+                                    }
+                                }else{
+                                    $transactionupdated['message']="error";
+                                    $transactionupdated['error']="account disabled";
+                                }
+                            }else{
+                                $transactionupdated['message']="error";
+                                $transactionupdated['error']="no account find";
+                            }
+                        }else{
+                            $transactionupdated['message']="error";
+                            $transactionupdated['error']="transaction already validated";
+                        }
+                        
+                        array_push($savedtransactions,$this->show($transactionupdated));
+                    }
+                    DB::commit();
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "error"=>null,
+                        "data"=>$savedtransactions
+                    ]);
+                } catch (Exception $th) {
+                    DB::rollBack();
+                    //throw $th;
+                    return response()->json([
+                        "status"=>500,
+                        "message"=>"error",
+                        "error"=>$th->getMessage(),
+                        "data"=>null
+                    ]);
+                }
+                
+            }else{
+                return response()->json([
+                    "status"=>402,
+                    "message"=>"error",
+                    "error"=>"unauthorized user",
+                    "data"=>null
+                ]);   
+            }
+        }else{
+            return response()->json([
+                "status"=>402,
+                "message"=>"error",
+                "error"=>"unknown user",
+                "data"=>null
+            ]);   
         }
     }
 
@@ -167,7 +452,22 @@ class WekaAccountsTransactionsController extends Controller
                             try {
                                 $memberaccountupdated=$memberaccount;
                                 $memberaccountupdated->sold=$memberaccount->sold-$request['amount'];
-                                $memberaccountupdated->save();
+
+                                if ($request['transaction_status']==='validated') {
+                                    $memberaccountupdated->save();
+                                }
+                                
+                                $ifexistsuuid=wekaAccountsTransactions::where('uuid',$request['uuid'])->get();
+                                if (($ifexistsuuid->count())>0) {
+                                    DB::rollBack();
+                                    return response()->json([
+                                        "status"=>200,
+                                        "message"=>"error",
+                                        "error"=>"uuid duplicated",
+                                        "data"=>$request->all()
+                                    ]);
+                                }
+
                                 $savewithdrawtransaction=wekaAccountsTransactions::create([
                                     'amount'=>$request['amount'],
                                     'sold_before'=>$soldbefore,
@@ -182,7 +482,10 @@ class WekaAccountsTransactionsController extends Controller
                                     'account_id'=>$request['account_id'],
                                     'operation_done_by'=>$request['operation_done_by'],
                                     'uuid'=>$this->getUuId('WEKA','OP'),
-                                    'fees'=>$request['fees']
+                                    'fees'=>$request['fees'],
+                                    'transaction_status'=>$request['transaction_status'],
+                                    'phone'=>$request['phone'],
+                                    'adresse'=>$request['adresse']
                                 ]);
                                 DB::commit();
                                 return response()->json([
@@ -196,15 +499,15 @@ class WekaAccountsTransactionsController extends Controller
                                 //throw $th;
                                 return response()->json([
                                     "status"=>500,
-                                    "message"=>"error occured",
-                                    "error"=>$th,
+                                    "message"=>"error",
+                                    "error"=>$th->getMessage(),
                                     "data"=>null
                                 ]);
                             }
                         }else {
                             return response()->json([
                                 "status"=>401,
-                                "message"=>"error occured",
+                                "message"=>"error",
                                 "error"=>"sold not enough",
                                 "data"=>null
                             ]);
@@ -218,7 +521,22 @@ class WekaAccountsTransactionsController extends Controller
                             try {
                                 $memberaccountupdated=$memberaccount;
                                 $memberaccountupdated->sold=$memberaccount->sold+$request['amount'];
-                                $memberaccountupdated->save();
+                                if ($request['transaction_status']=='validated') {
+                                    $memberaccountupdated->save();
+                                }
+                                
+                                $ifexistsuuid=wekaAccountsTransactions::where('uuid',$request['uuid'])->get();
+                                if (($ifexistsuuid->count())>0) {
+                                    DB::rollBack();
+                                    
+                                    return response()->json([
+                                        "status"=>200,
+                                        "message"=>"error",
+                                        "error"=>"uuid duplicated",
+                                        "data"=>$request->all()
+                                    ]);
+                                }
+
                                 $savewithdrawtransaction=wekaAccountsTransactions::create([
                                     'amount'=>$request['amount'],
                                     'sold_before'=>$soldbefore,
@@ -233,7 +551,10 @@ class WekaAccountsTransactionsController extends Controller
                                     'account_id'=>$request['account_id'],
                                     'operation_done_by'=>$request['operation_done_by'],
                                     'uuid'=>$this->getUuId('WEKA','OP'),
-                                    'fees'=>$request['fees']
+                                    'fees'=>$request['fees'],
+                                    'transaction_status'=>$request['transaction_status'],
+                                    'phone'=>$request['phone'],
+                                    'adresse'=>$request['adresse']
                                 ]);
                                 DB::commit();
                                 return response()->json([
@@ -308,7 +629,16 @@ class WekaAccountsTransactionsController extends Controller
                             try {
                                 $memberaccountupdated=$memberaccount;
                                 $memberaccountupdated->sold=$memberaccount->sold-$request['amount'];
-                                $memberaccountupdated->save();
+                                if ($request['transaction_status']=='validated') {
+                                    $memberaccountupdated->save(); # code...
+                                }
+                                $ifexistsuuid=wekaAccountsTransactions::where('uuid',$request['uuid'])->get();
+                                if (($ifexistsuuid->count())>0) {
+                                    $request['error']="uuid duplicated";
+                                    $request['message']="error";
+                                    return $request->all();
+                                }
+
                                 $savewithdrawtransaction=wekaAccountsTransactions::create([
                                     'amount'=>$request['amount'],
                                     'sold_before'=>$soldbefore,
@@ -351,7 +681,18 @@ class WekaAccountsTransactionsController extends Controller
                             try {
                                 $memberaccountupdated=$memberaccount;
                                 $memberaccountupdated->sold=$memberaccount->sold+$request['amount'];
-                                $memberaccountupdated->save();
+
+                                if ($request['transaction_status']=='validated') {
+                                    $memberaccountupdated->save(); 
+                                }
+
+                                $ifexistsuuid=wekaAccountsTransactions::where('uuid',$request['uuid'])->get();
+                                if (($ifexistsuuid->count())>0) {
+                                    $request['error']="uuid duplicated";
+                                    $request['message']="error";
+                                    return $request->all();
+                                }
+                               
                                 $savewithdrawtransaction=wekaAccountsTransactions::create([
                                     'amount'=>$request['amount'],
                                     'sold_before'=>$soldbefore,
@@ -366,7 +707,7 @@ class WekaAccountsTransactionsController extends Controller
                                     'account_id'=>$request['account_id'],
                                     'operation_done_by'=>$request['operation_done_by'],
                                     'uuid'=>$request['uuid']?$request['uuid']:$this->getUuId('WEKA','OP'),
-                                    'fees'=>$request['fees']
+                                    'fees'=>$request['fees'],
                                 ]);
                                 DB::commit();
                                 $original=$this->show($savewithdrawtransaction);

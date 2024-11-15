@@ -45,6 +45,28 @@ class ProviderControllerController extends Controller
         return ProviderController::create($request->all());
     }
 
+    public function importation(Request $request){
+        $list=[];
+        if (isset($request['data']) && count($request['data'])>0) {
+            foreach ($request['data'] as $provider) {
+                //if exists
+                $ifexists=ProviderController::where('providerName',$provider['providerName'])->first();
+                if(!$ifexists){
+                    $newone=ProviderController::create($provider);
+                    if ($newone) {
+                        $provider['message']="success";
+                    }else{
+                        $provider['message']="failed";
+                    }
+                }else{
+                    $provider['message']="duplicated";
+                }
+                array_push($list,$provider);
+            }
+        }
+        return $list;
+    }
+
     /**
      * Display the specified resource.
      *
@@ -93,11 +115,17 @@ class ProviderControllerController extends Controller
      * Gettings stock history by provider
      */
     public function stockhistory($providerid){
+        $stockhistoryctrl= new StockHistoryControllerController();
+        $list=collect(StockHistoryController::where('provider_id','=',$providerid)->get());
+        $list=$list->map(function($history) use($stockhistoryctrl){
+            return $stockhistoryctrl->show($history);
+        });
+//   $list=StockHistoryController::leftjoin('deposit_controllers as D','stock_history_controllers.depot_id','=','D.id')
+//         ->leftjoin('services_controllers as S','stock_history_controllers.service_id','=','S.id')
+//         ->leftjoin('users as U','stock_history_controllers.user_id','=','U.id')
+//         ->where('provider_id','=',$providerid)->get(['stock_history_controllers.*','S.name as service_name','D.name as deposit_name','U.user_name as done_by_name']);
 
-       return StockHistoryController::leftjoin('deposit_controllers as D','stock_history_controllers.depot_id','=','D.id')
-       ->leftjoin('services_controllers as S','stock_history_controllers.service_id','=','S.id')
-       ->leftjoin('users as U','stock_history_controllers.user_id','=','U.id')
-       ->where('provider_id','=',$providerid)->get(['stock_history_controllers.*','S.name as service_name','D.name as deposit_name','U.user_name as done_by_name']);
+       return $list;
     }
     
     /**

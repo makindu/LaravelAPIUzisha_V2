@@ -45,6 +45,7 @@ class RequestHistoryController extends Controller
             $request['sold']=$fund->sold+$request->amount;
             $newvalue=requestHistory::create($request->all());
             DB::update('update funds set sold =sold + ? where id = ? ',[$request->amount,$request->fund_id]);
+            return  $this->show($newvalue);
         }else{
             //checking sold
             $gettingsold=funds::find($request->fund_id);
@@ -54,10 +55,16 @@ class RequestHistoryController extends Controller
                 $request['sold']=$sold-$request->amount;
                 $newvalue=requestHistory::create($request->all());
                 DB::update('update funds set sold =sold - ? where id = ? ',[$request->amount,$request->fund_id]); 
+                return  $this->show($newvalue);
+            }
+            else{
+                return response()->json([
+                    "message"=>"error",
+                    "error"=>"no type operation",
+                    "data"=>null
+                ]);
             }
         }
-
-        return  $this->show($newvalue);
     }
 
     /**
