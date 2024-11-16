@@ -636,6 +636,7 @@ class WekaAccountsTransactionsController extends Controller
                                 if (($ifexistsuuid->count())>0) {
                                     $request['error']="uuid duplicated";
                                     $request['message']="error";
+                                    // $ifexistsuuid[]
                                     return $request->all();
                                 }
 

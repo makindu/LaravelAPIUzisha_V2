@@ -15,6 +15,7 @@ class CreateSalariesTable extends Migration
     {
         Schema::create('salaries', function (Blueprint $table) {
             $table->id();
+            $table->string('description')->nullable();
             $table->bigInteger('position_id')->unsigned();
             $table->foreign('position_id')->references('id')->on('positions')->onDelete('cascade'); 
             $table->bigInteger('agent_id')->unsigned();

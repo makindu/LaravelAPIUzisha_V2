@@ -15,6 +15,7 @@ class positions extends Model
         'salary_amount',
         'method_of_calculation',
         'done_by',
-        'enterprise_id'
+        'enterprise_id',
+        'participation_rate'
     ];
 }

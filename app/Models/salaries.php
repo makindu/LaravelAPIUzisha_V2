@@ -12,6 +12,7 @@ class salaries extends Model
        'position_id',
        'agent_id',
        'affected_by', 
-       'enterprise_id'
+       'enterprise_id',
+       'description'
     ];
 }

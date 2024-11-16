@@ -26,11 +26,14 @@ use App\Http\Controllers\CommentsController;
 use App\Http\Controllers\InvoicesController;
 use App\Http\Controllers\PosusersController;
 use App\Http\Controllers\RequestsController;
+use App\Http\Controllers\SalariesController;
 use App\Http\Controllers\ServantsController;
 use App\Http\Controllers\MaterialsController;
+use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\SafeguardController;
 use App\Http\Controllers\VehiculesController;
 use OpenApi\Annotations\AdditionalProperties;
+use App\Http\Controllers\WekagroupsController;
 use App\Http\Controllers\DepartementController;
 use App\Http\Controllers\EnterprisesController;
 use App\Http\Controllers\PointOfSaleController;
@@ -39,6 +42,7 @@ use App\Http\Controllers\DecisionTeamController;
 use App\Http\Controllers\ExpendituresController;
 use App\Http\Controllers\OtherEntriesController;
 use App\Http\Controllers\RequestFilesController;
+use App\Http\Controllers\ReservationsController;
 use App\Http\Controllers\TicketOfficeController;
 use App\Http\Controllers\DepositsUsersController;
 use App\Http\Controllers\DocumentTypesController;
@@ -56,6 +60,7 @@ use App\Http\Controllers\AffectationUsersController;
 use App\Http\Controllers\PressingServicesController;
 use App\Http\Controllers\PricesCategoriesController;
 use App\Http\Controllers\UsersPointOfSaleController;
+use App\Http\Controllers\WekafirstentriesController;
 use App\Http\Controllers\DepositControllerController;
 use App\Http\Controllers\RequestReferencesController;
 use App\Http\Controllers\UsersTicketOfficeController;
@@ -64,6 +69,7 @@ use App\Http\Controllers\ExpendituresLimitsController;
 use App\Http\Controllers\ProviderControllerController;
 use App\Http\Controllers\RequestapprovmentsController;
 use App\Http\Controllers\ServicesControllerController;
+use App\Http\Controllers\WekamemberaccountsController;
 use App\Http\Controllers\EnterprisesinvoicesController;
 use App\Http\Controllers\DecisionDecisionteamController;
 use App\Http\Controllers\DetailsInvoicesStatusController;
@@ -74,14 +80,10 @@ use App\Http\Controllers\UsersExpendituresLimitsController;
 use App\Http\Controllers\ValidatedbydecisionteamController;
 use App\Http\Controllers\AttemptactivationaccountController;
 use App\Http\Controllers\DecisionChiefdepartmentsController;
+use App\Http\Controllers\WekaAccountsTransactionsController;
 use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
-use App\Http\Controllers\ReservationsController;
-use App\Http\Controllers\WekaAccountsTransactionsController;
-use App\Http\Controllers\WekafirstentriesController;
-use App\Http\Controllers\WekagroupsController;
-use App\Http\Controllers\WekamemberaccountsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -692,4 +694,20 @@ Route::get('/weka/groups/members/{id}',[WekagroupsController::class,'getmembers'
 Route::post('/weka/groups/removemembers',[WekagroupsController::class,'removemembers']);
 Route::post('/weka/groups/memberslevel',[WekagroupsController::class,'memberslevel']);
 Route::post('/weka/groups/memberslookup',[WekagroupsController::class,'memberslookup']);
+
+/**
+ * POSITIONS
+ * 
+ */
+Route::post('/weka/positions/new',[PositionsController::class,'store']);
+Route::post('/weka/positions/list',[PositionsController::class,'index']);
+
+/**
+ * SALARIES
+ */
+Route::post('/weka/salaries/new',[SalariesController::class,'store']);
+Route::post('/weka/salaries/list',[SalariesController::class,'index']);
+
+
+
 
