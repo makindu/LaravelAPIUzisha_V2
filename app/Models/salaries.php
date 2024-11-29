@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class salaries extends Model
 {
     use HasFactory;
-    protected $fillable=[
+    protected $fillable =[
        'position_id',
        'agent_id',
        'affected_by', 

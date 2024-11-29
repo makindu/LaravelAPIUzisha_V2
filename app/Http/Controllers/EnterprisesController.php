@@ -28,6 +28,7 @@ use App\Models\Fences;
 use App\Models\Invoices;
 use App\Models\OtherEntries;
 use App\Models\StockHistoryController;
+use Exception;
 use Illuminate\Http\Request;
 
 class EnterprisesController extends Controller
@@ -55,6 +56,70 @@ class EnterprisesController extends Controller
     public function create()
     {
         //
+    }
+
+    /**
+     * update enterprises status
+     */
+    public function updatestatus(Request $request){
+        return response()->json([
+            "status"=>400,
+            "message"=>"error",
+            "error"=>"user not find",
+            "data"=>null
+        ]); 
+        $eses=[];
+        if ($request['done_by']) {
+            try {
+                $actualuser=user::find($request['done_by']);
+                if ($actualuser) {
+                    foreach ($request['enterprises'] as $enterprise) {
+                        $ese=Enterprises::find($enterprise['id']);
+                        if ($ese) {
+                            $eseupdated=$ese->update(['status'=>$enterprise['status_sent']]);
+                            array_push($eses,$ese);
+                            if ($eseupdated && $eseupdated['status']=="disabled") {
+                                $users=usersenterprise::where('enterprise_id')->get();
+                                foreach ($users as  $user) {
+                                    $userfind=user::find($user['user_id']);
+                                    if ($userfind) {
+                                        $userfind->update(["status"=>"desabled"]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+ 
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "error"=>null,
+                        "data"=>$eses=[]
+                    ]);  
+                }else{
+                    return response()->json([
+                        "status"=>400,
+                        "message"=>"error",
+                        "error"=>"user not find",
+                        "data"=>null
+                    ]);  
+                }
+            } catch (Exception $th) {
+                return response()->json([
+                    "status"=>500,
+                    "message"=>"error",
+                    "error"=>$th->getMessage(),
+                    "data"=>null
+                ]);
+            }
+        }else{
+            return response()->json([
+                "status"=>400,
+                "message"=>"error",
+                "error"=>"user not find",
+                "data"=>null
+            ]); 
+        }
     }
 
     /**

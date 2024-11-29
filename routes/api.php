@@ -54,6 +54,7 @@ use App\Http\Controllers\InvoicesStatusController;
 use App\Http\Controllers\RequestHistoryController;
 use App\Http\Controllers\SelfReferencesController;
 use App\Http\Controllers\TransfertstockController;
+use App\Http\Controllers\AdvancesalariesController;
 use App\Http\Controllers\MoneyConversionController;
 use App\Http\Controllers\SubDepartementsController;
 use App\Http\Controllers\AffectationUsersController;
@@ -242,6 +243,7 @@ Route::put('/enterprises/update/{id}',[EnterprisesController::class,'update2']);
 Route::get('/enterprises/getinfos/{id}',[EnterprisesController::class,'getone']);
 Route::post('/enterprises/resetdata',[EnterprisesController::class,'resetalldata']);
 Route::post('/enterprises/resetdates',[EnterprisesController::class,'datesConsolidation']);
+Route::put('/enterprises/updatestatus',[EnterprisesController::class,'updatestatus']);
 
 //Enterprises invoices abonments
 Route::apiResource('enterprisesinvoices',EnterprisesinvoicesController::class);
@@ -707,6 +709,17 @@ Route::post('/weka/positions/list',[PositionsController::class,'index']);
  */
 Route::post('/weka/salaries/new',[SalariesController::class,'store']);
 Route::post('/weka/salaries/list',[SalariesController::class,'index']);
+Route::post('/weka/salaries/update/{id}',[SalariesController::class,'update']);
+Route::post('/weka/salaries/employeespayslips',[SalariesController::class,'employeesalairies']);
+Route::post('/weka/salaries/delete',[SalariesController::class,'deletesalary']);
+
+/**
+ * ADVANCES SALARIES
+ */
+Route::post('/weka/advancesalaries/new',[AdvancesalariesController::class,'store']);
+Route::post('/weka/advancesalaries/byagent',[AdvancesalariesController::class,'index']);
+Route::post('/weka/advancesalaries/update',[AdvancesalariesController::class,'update']);
+Route::post('/weka/advancesalaries/delete',[AdvancesalariesController::class,'deleteadvance']);
 
 
 
