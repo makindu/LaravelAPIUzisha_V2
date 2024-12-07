@@ -1183,6 +1183,17 @@ class UsersController extends Controller
         ->where('users.id','=',$user->id)
         ->get(['users.*','R.title as role_title', 'R.description as role_description','R.permissions as role_permissions','E.enterprise_id'])->first();
         return $usersent;
+    } 
+    
+    /**
+     * Show Weka akiba
+     */
+    public function showweka(User $user)
+    {
+        $accountctrl = new WekamemberaccountsController();
+        $member=$this->show(user::find($user->id));
+        $member['accounts']=$accountctrl->allaccounts($member['id']);
+        return $member;
     }
 
     public function getone($id){
@@ -1192,6 +1203,11 @@ class UsersController extends Controller
         ->where('users.id', '=',$id)
         ->get(['D.department_name as department_name', 'D.id as department_id', 'users.*', 'A.level'])[0];
 
+    }
+    
+    public function getuserbyId($id){
+        $userfind=User::find($id);
+        return $this->show($userfind);
     }
 
     public function getuseraccess($id){
@@ -1261,6 +1277,14 @@ class UsersController extends Controller
        return $this->show($user);
     } 
     
+    public function updatewekamember(Request $request, $id)
+    {
+        $user=User::find($id);
+        $user->update($request->all());
+
+       return $this->showweka($user);
+    } 
+    
     public function changerStatus(Request $request)
     {
         DB::update('update users set status = ? where id = ?',[$request['status'],$request['user_id']]);
@@ -1319,13 +1343,32 @@ class UsersController extends Controller
         ->where('usersenterprises.enterprise_id','=',$enterprise_id)
         ->where('users.user_type','=','member')
         ->paginate(20);
-        $listdata=$list->getCollection()->map(function ($item){
+        $listdata=$list->getCollection()->transform(function ($item){
             $accountctrl = new WekamemberaccountsController();
             $member=$this->show(user::find($item['user_id']));
             $member['accounts']=$accountctrl->allaccounts($member['id']);
             return $member;
         });
         return $listdata;
+     }
+
+     /**
+      * list des membres weka akiba groupes
+      */
+     public function wekamemberslistpaginated($enterprise_id){
+
+        $list=usersenterprise::join('users','usersenterprises.user_id','users.id')
+        ->where('usersenterprises.enterprise_id','=',$enterprise_id)
+        ->where('users.user_type','=','member')
+        ->paginate(20);
+        
+        $list->getCollection()->transform(function ($item){
+            $accountctrl = new WekamemberaccountsController();
+            $member=$this->show(user::find($item['user_id']));
+            $member['accounts']=$accountctrl->allaccounts($member['id']);
+            return $member;
+        });
+        return $list;
      }
      
      /**
@@ -1373,7 +1416,7 @@ class UsersController extends Controller
             $list=collect(usersenterprise::join('users','usersenterprises.user_id','users.id')
             // ->leftjoin('wekamemberaccounts','usersenterprises.user_id','=','wekamemberaccounts.user_id')
             ->where('usersenterprises.enterprise_id','=',$request['enterprise_id'])
-            ->where('users.user_type','=','member')
+            // ->where('users.user_type','=','member')
             ->where('users.full_name','LIKE',"%$request->keyword%")
             ->orWhere('users.uuid','LIKE',"%$request->keyword%")
             ->limit(10)
@@ -1471,7 +1514,7 @@ class UsersController extends Controller
                       if($request['returned'] && $request['returned']==='customer'){
                         $datatoreturn=$customerctrl->show($ascustomer);
                       }else{
-                        $datatoreturn=$this->show($newuser);
+                        $datatoreturn=$this->showweka($newuser);
                       }  
                     return response()->json([
                         "status"=>200,

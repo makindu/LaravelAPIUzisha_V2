@@ -332,7 +332,53 @@ class WekafirstentriesController extends Controller
      */
     public function update(UpdatewekafirstentriesRequest $request, wekafirstentries $wekafirstentries)
     {
-        //
+        $find=wekafirstentries::find($request['id']);
+        if ($find) {
+            try {
+                $updated=$find->update([
+                    'amount'=>$request['amount'],
+                    'description'=>$request['description'],
+                    'done_by_id'=>$request['done_by_id'],
+                    'member_id'=>$request['member_id'],
+                    'collector_id'=>$request['collector_id'],
+                    'money_id'=>$request['money_id'],
+                    'sync_status'=>$request['sync_status'],
+                    'cashed'=>$request['cashed'],
+                    'cashed_by'=>$request['cashed_by'],
+                    'fund'=>$request['fund'],
+                    'enterprise_id'=>$request['enterprise_id'],
+                    'done_at'=>$request['done_at']
+                ]);
+                if (!$updated) {
+                    return response()->json([
+                        "status"=>400,
+                        "message"=>"error",
+                        "error"=>'enable to achieve action',
+                        "data"=>$this->show($find) 
+                    ]);
+                }
+                return response()->json([
+                    "status"=>200,
+                    "message"=>"success",
+                    "error"=>null,
+                    "data"=>$this->show($find) 
+                ]);
+            } catch (Exception $th) {
+                return response()->json([
+                    "status"=>500,
+                    "message"=>"error",
+                    "error"=>$th->getMessage(),
+                    "data"=>null
+                ]); 
+            }
+        }else{
+            return response()->json([
+                "status"=>400,
+                "message"=>"error",
+                "error"=>"entry not find",
+                "data"=>null
+            ]);
+        }
     }
 
     /**
@@ -341,8 +387,27 @@ class WekafirstentriesController extends Controller
      * @param  \App\Models\wekafirstentries  $wekafirstentries
      * @return \Illuminate\Http\Response
      */
-    public function destroy(wekafirstentries $wekafirstentries)
+    public function destroy(Request $wekafirstentries)
     {
-        //
+        $find=wekafirstentries::find($wekafirstentries['id']);
+        if ($find) {
+            try {
+                $deleted=$find->delete();
+                return response()->json([
+                    "status"=>200,
+                    "message"=>"success",
+                    "error"=>null,
+                    "data"=>$deleted
+                ]);
+            } catch (Exception $th) {
+                return response()->json([
+                    "status"=>500,
+                    "message"=>"error",
+                    "error"=>$th->getMessage(),
+                    "data"=>null
+                ]); 
+            }
+           
+        }
     }
 }

@@ -111,6 +111,7 @@ Route::patch('/users/update/{id}',[UsersController::class,'update2']);
 Route::post('/users/updatestatus',[UsersController::class,'changerStatus']);
 Route::post('/users/updatepassword',[UsersController::class,'updatePassword']);
 Route::get('/getuser',[UsersController::class,'getone']);
+Route::get('/users/getbyid/{id}',[UsersController::class,'getuserbyId']);
 Route::post('/users/dashboard/{id}',[UsersController::class,'dashboardBasedDateOperation']);
 Route::post('/users/makeassuperadmin',[UsersController::class,'makeassuperadmin']);
 Route::post('/users/resetpassword',[UsersController::class,'ifexistsemailadress']);
@@ -672,6 +673,7 @@ Route::get('/weka/allaccounts/{id}',[WekamemberaccountsController::class,'allacc
 Route::get('/weka/member/accounts/{id}',[WekamemberaccountsController::class,'membersaccounts']);
 Route::post('/weka/import/members',[UsersController::class,'wekaimportmembers']);
 Route::get('/weka/users/enterprise/{id}',[UsersController::class,'wekamemberslist']);
+Route::get('/weka/memberspaginated/{enterpriseid}',[UsersController::class,'wekamemberslistpaginated']);
 Route::get('/weka/members-to-validated/enterprise/{id}',[UsersController::class,'wekamemberstovalidate']);
 Route::post('/weka/members/lookup',[UsersController::class,'wekamemberslookup']);
 
@@ -681,14 +683,20 @@ Route::post('/weka/transactions',[WekaAccountsTransactionsController::class,'ind
 Route::post('/weka/transactions/update',[WekaAccountsTransactionsController::class,'updatetransactions']);
 
 Route::post('/weka/members/newmember',[UsersController::class,'newwekamember']);
+Route::put('/weka/members/update/{id}',[UsersController::class,'updatewekamember']);
+
 Route::post('/weka/firstentries',[WekafirstentriesController::class,'index']);
 Route::post('/weka/firstentries/new',[WekafirstentriesController::class,'store']);
+Route::post('/weka/firstentries/delete',[WekafirstentriesController::class,'destroy']);
+Route::post('/weka/firstentries/update',[WekafirstentriesController::class,'update']);
+
 Route::post('/weka/members-validation',[UsersController::class,'members_validation']);
 Route::post('/weka/usersbytypes/enterprise',[UsersController::class,'usersbytypes']);
 Route::post('/users/membertocollectors',[UsersController::class,'membertocollectors']);
 
 
 Route::post('/weka/groups',[WekagroupsController::class,'index']);
+Route::post('/weka/groupswithmembers',[WekagroupsController::class,'groupandmembers']);
 Route::post('/weka/groupes/new',[WekagroupsController::class,'store']);
 Route::post('/weka/groups/update/{id}',[WekagroupsController::class,'update']);
 Route::post('/weka/groups/addmembers',[WekagroupsController::class,'addmembers']);

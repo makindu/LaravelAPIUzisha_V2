@@ -98,6 +98,19 @@ class WekagroupsController extends Controller
     }
 
     /**
+     * Get groups with members at the same time
+     */
+    public function groupandmembers(Request $request){
+        $list=collect(wekagroups::where('enterprise_id',$request['enterprise_id'])->get());
+        $listdata=$list->map(function ($group){
+            $group=$this->show($group);
+            $group['members']=$this->getmembers($group['id']);
+            return $group;
+        });
+
+        return $listdata;
+    }
+    /**
      * Show the form for creating a new resource.
      *
      * @return \Illuminate\Http\Response

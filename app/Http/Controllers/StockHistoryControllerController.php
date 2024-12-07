@@ -109,7 +109,7 @@ class StockHistoryControllerController extends Controller
         if($request['type']=='entry'){
             DB::update('update deposit_services set available_qte = available_qte + ? where service_id = ? and deposit_id = ?',[$request['quantity'],$request['service_id'],$request['depot_id']]);
             //calcul stock used by FIFO or LIFO method par ici... avant d'enregistrer le stock history
-                if(isset($request['price'])){
+                if($request['price']){
                     $request['total']=$request['quantity']*$request['price'];
                 }
             return $this->show(StockHistoryController::create($request->all()));
@@ -128,7 +128,7 @@ class StockHistoryControllerController extends Controller
                     }
                 }
                 DB::update('update deposit_services set available_qte = available_qte - ? where service_id = ? and deposit_id = ?',[$request['quantity'],$request['service_id'],$request['depot_id']]);
-                if(isset($request['price'])){
+                if($request['price']){
                     $request['total']=$request['quantity']*$request['price'];
                 }
                 return $this->show(StockHistoryController::create($request->all()));
