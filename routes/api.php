@@ -677,6 +677,8 @@ Route::get('/weka/memberspaginated/{enterpriseid}',[UsersController::class,'weka
 Route::get('/weka/members-to-validated/enterprise/{id}',[UsersController::class,'wekamemberstovalidate']);
 Route::post('/weka/members/lookup',[UsersController::class,'wekamemberslookup']);
 
+Route::post('/weka/financedashboard/{userid}',[UsersController::class,'wekafinancedashboard']);
+
 Route::post('/weka/transactions/new',[WekaAccountsTransactionsController::class,'store']);
 Route::post('/weka/transactions/syncing',[WekaAccountsTransactionsController::class,'syncing']);
 Route::post('/weka/transactions',[WekaAccountsTransactionsController::class,'index']);

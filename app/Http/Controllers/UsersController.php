@@ -2,34 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\DefaultMail;
+use stdClass;
+use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Debts;
+use App\Models\funds;
 use App\Models\Fences;
+use App\Models\moneys;
 use App\Models\Accounts;
+use App\Models\Cautions;
 use App\Models\Invoices;
+use App\Mail\DefaultMail;
+use App\Models\DebtPayments;
 use App\Models\Expenditures;
 use App\Models\OtherEntries;
 use Illuminate\Http\Request;
-use App\Models\usersenterprise;
-use App\Models\affectation_users;
-use App\Models\Cautions;
-use App\Models\CustomerController;
-use App\Models\customerspointshistory;
-use App\Models\DebtPayments;
-use App\Models\DepositController;
 use App\Models\DepositsUsers;
-use App\Models\funds;
-use App\Models\money_conversion;
-use App\Models\moneys;
 use App\Models\passwordreset;
+use PHPMailer\PHPMailer\SMTP;
+use App\Models\requestHistory;
+use App\Models\usersenterprise;
+use App\Models\money_conversion;
 use App\Models\wekafirstentries;
+use App\Models\affectation_users;
+use App\Models\DepositController;
+use App\Models\CustomerController;
 use App\Models\wekamemberaccounts;
 use Illuminate\Support\Facades\DB;
-use stdClass;
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
+use PHPMailer\PHPMailer\PHPMailer;
+use App\Models\customerspointshistory;
+use App\Models\wekaAccountsTransactions;
 
 class UsersController extends Controller
 {
@@ -581,6 +584,234 @@ class UsersController extends Controller
         }
         
         return ['nbrmembersaccountstovalidate'=>$nbrmembersaccountstovalidate,'totalEntriesCautions'=>$totalEntriesCautions,'totalSellByCautions'=>$totalSellByCautions,'totalSellByBonus'=>$totalSellByBonus,'totalEntriesBonus'=>$totalEntriesBonus,'totalSellBypoints'=>$totalSellBypoints,'totalEntriesPoints'=>$totalEntriesPoints,'total_accounts'=>$total_account_entries+$total_account_expenditures,'default_money'=>$defautmoney,'from'=>$request['from'],'to'=>$request['to'],'message'=>$msg,'total_cash'=>$total_cash,'total_credits'=>$total_credits,'total_entries'=>$total_entries,'total_expenditures'=>$total_expenditures,'total_fences'=>$total_fences,'total_debts'=>$total_debts,'cash'=>$cash,'credits'=>$credits,'expenditures'=>$expenditures,'entries'=>$entries,'fences'=>$fences,'debts'=>$debts,'accounts'=>$accounts];
+    } 
+    
+    private function wekagetexpenditures(Request $request){
+
+        $moneys=collect(moneys::where("enterprise_id",$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+            $histories=requestHistory::join('funds as F','request_histories.fund_id','F.id')
+            ->join('moneys as M','F.money_id','M.id')
+            ->whereBetween('request_histories.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->where('F.money_id','=',$money['id'])
+            ->where('request_histories.enterprise_id','=',$request['enterprise_id'])
+            ->where('request_histories.type','=','withdraw')
+            ->get(['request_histories.*']); 
+
+            $money['totalexpenditures']=$histories->sum('amount');
+            return $money;
+        });
+
+        return $moneys;
+    }   
+    
+    private function wekagetnumbermembers(Request $request){
+
+        if($request['criteria']=="all"){
+            $members=CustomerController::where('enterprise_id','=',$request['enterprise_id'])
+            ->where('member_id','>',0)->get();
+        }else{
+            $members=CustomerController::where('enterprise_id','=',$request['enterprise_id'])
+            ->whereBetween('created_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->where('member_id','>',0)->get();
+        }
+        
+        return $members->count();
+    }  
+    
+    private function wekagetfirstentries(Request $request){
+
+        $moneys=collect(moneys::where("enterprise_id",$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+            $firstentries=wekafirstentries::where('enterprise_id','=',$request['enterprise_id'])
+            ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->where('money_id','=',$money['id'])
+            ->get();
+            $money['totalfirstentries']=$firstentries->sum('amount');
+            return $money;
+        });
+
+        return $moneys;
+
+    }  
+    
+    private function wekagetsells(Request $request){
+
+        $moneys=collect(moneys::where("enterprise_id",$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+            $invoices=invoices::where('enterprise_id','=',$request['enterprise_id'])
+            ->whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->where('money_id','=',$money['id'])
+            ->where('type_facture','<>','proforma')
+            ->get();
+            $money['totalsells']=$invoices->sum('netToPay');
+            return $money;
+        });
+
+        return $moneys;
+
+    }   
+    
+    private function wekagetaccountstransactions(Request $request){
+
+        $moneys=collect(moneys::where("enterprise_id",$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+            $transactions=wekaAccountsTransactions::join('wekamemberaccounts as WA','weka_accounts_transactions.member_account_id','WA.id')
+            ->join('moneys as M','WA.money_id','M.id')
+            ->whereBetween('weka_accounts_transactions.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->where('weka_accounts_transactions.enterprise_id','=',$request['enterprise_id'])
+            ->where('weka_accounts_transactions.type','=',$request['criteria'])
+            ->where('WA.money_id','=',$money['id'])
+            ->get();
+
+            $money['totaltransactions']=$transactions->sum('amount');
+
+            return $money;
+        });
+
+        return $moneys;
+    }
+
+    public function wekafinancetotaltransactions(Request $request){
+    
+        $moneys=collect(moneys::where('enterprise_id',$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+        
+            $money['totalsoldtransactions']=0;
+            $money['totalsoldtransactions']= $money['totalsoldtransactions']+($request['depositmembers']->where('id','=', $money['id'])->sum('totaltransactions'));
+            $money['totalsoldtransactions']= $money['totalsoldtransactions']-($request['withdrawmembers']->where('id','=', $money['id'])->sum('totaltransactions'));
+
+          return $money;
+        });
+
+        return $moneys;
+    }
+    
+    public function wekafinancetotalrevenu(Request $request){
+    
+        $moneys=collect(moneys::where('enterprise_id',$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+        
+            $money['totalrevenu']=0;
+            $money['totalrevenu']= $money['totalrevenu']+($request['firstentries']->where('id','=', $money['id'])->sum('totalfirstentries'));
+            $money['totalrevenu']= $money['totalrevenu']+($request['sells']->where('id','=', $money['id'])->sum('totalsells'));
+
+          return $money;
+        });
+
+        return $moneys;
+    } 
+    
+    public function wekafinancebenefits(Request $request){
+    
+        $moneys=collect(moneys::where('enterprise_id',$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+        
+            $money['totalbenefits']=0;
+            $money['totalbenefits']= $money['totalbenefits']+($request['totalrevenu']->where('id','=', $money['id'])->sum('totalrevenu'));
+            $money['totalbenefits']= $money['totalbenefits']-($request['expenditures']->where('id','=', $money['id'])->sum('totalexpenditures'));
+
+          return $money;
+        });
+
+        return $moneys;
+    }
+
+    public function wekafinancedashboard(Request $request,$userId){
+
+        $user=$this->getinfosuser($userId);
+        if($user && $user['user_type']=="super_admin"){
+            $ese=$this->getEse($user['id']);
+            if($ese && $ese['status']=="enabled"){
+                if (empty($request['from']) && empty($request['to'])) {
+                    $request['from']=date('Y-m-d');
+                    $request['to']=date('Y-m-d');
+                }
+                try {
+                   
+                    $expenditures=$this->wekagetexpenditures(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                    $totalmembers=$this->wekagetnumbermembers(new Request(['criteria'=>'all','enterprise_id'=>$ese['id']]));
+                    $nbmembers=$this->wekagetnumbermembers(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                    $firstentries=$this->wekagetfirstentries(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                    $sells=$this->wekagetsells(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                    $depositmembers=$this->wekagetaccountstransactions(new Request(['criteria'=>'deposit','from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                    $withdrawmembers=$this->wekagetaccountstransactions(new Request(['criteria'=>'withdraw','from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                    $soldtransactions=$this->wekafinancetotaltransactions(new Request(['depositmembers'=>$depositmembers,'withdrawmembers'=>$withdrawmembers,'enterprise_id'=>$ese['id']]));
+                    $totalrevenu=$this->wekafinancetotalrevenu(new Request(['firstentries'=>$firstentries,'sells'=>$sells,'enterprise_id'=>$ese['id']]));
+                    $befenefits=$this->wekafinancebenefits(new Request(['totalrevenu'=>$totalrevenu,'expenditures'=>$expenditures,'enterprise_id'=>$ese['id']]));
+
+                    $intervals=[];
+                    $periodicdashboard=[];
+                    $fromdate=Carbon::parse($request['from']);
+                    $todate=Carbon::parse($request['to']);
+            
+                    while($fromdate<=$todate){
+                        array_push($intervals,$fromdate->toDateString());
+                        $fromdate->addDay();
+                    }
+
+                    foreach ($intervals as $dateoperation) {
+                        $request['from']=$dateoperation;
+                        $request['to']=$dateoperation;
+
+                        $periodicfirstentries=$this->wekagetfirstentries(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                        $periodicexpenditures=$this->wekagetexpenditures(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                        $periodicsells=$this->wekagetsells(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
+                        $periodictotalrevenu=$this->wekafinancetotalrevenu(new Request(['firstentries'=>$periodicfirstentries,'sells'=>$periodicsells,'enterprise_id'=>$ese['id']]));
+                        $periodicbefenefits=$this->wekafinancebenefits(new Request(['totalrevenu'=>$periodictotalrevenu,'expenditures'=>$periodicexpenditures,'enterprise_id'=>$ese['id']]));
+                        
+                        $data=[
+                            'date'=>$dateoperation,
+                            'periodictotalrevenu'=>$periodictotalrevenu,
+                            'periodicbefenefits'=>$periodicbefenefits,
+                            'periodicexpenditures'=>$periodicexpenditures
+                        ];
+
+                        array_push($periodicdashboard,$data);
+                    }
+                    
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "error"=>null,
+                        "data"=>[
+                            'totalrevenu'=>$totalrevenu,
+                            'expenditures'=>$expenditures,
+                            'benefits'=>$befenefits,
+                            'nbmembers'=>$nbmembers,
+                            'totalmembers'=>$totalmembers,
+                            'firstentries'=>$firstentries,
+                            'sells'=>$sells,
+                            'depositmembers'=>$depositmembers,
+                            'withdrawmembers'=>$withdrawmembers,
+                            'soldtransactions'=>$soldtransactions,
+                            'periodicdashboard'=>$periodicdashboard
+                        ]
+                     ]);
+                } catch (Exception $e) {
+                    return response()->json([
+                        'data'=>$user,
+                        'status'=>500,
+                        'error'=>$e->getMessage(),
+                        'message'=>"error"
+                    ]);
+                }
+            }else{
+                return response()->json([
+                    "status"=>400,
+                    "message"=>"error",
+                    "error"=>"enterprise not find or disabled",
+                    "data"=>null
+                 ]);
+            }
+        }else{
+            return response()->json([
+               "status"=>400,
+                "message"=>"error",
+                "error"=>"user unauthorized",
+                "data"=>null
+            ]);
+        }
     }
 
     /**
