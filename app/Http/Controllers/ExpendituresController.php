@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use stdClass;
+use Exception;
 use App\Models\Expenditures;
 use Illuminate\Http\Request;
 use App\Models\UsersExpendituresLimits;
 use App\Http\Requests\StoreExpendituresRequest;
 use App\Http\Requests\UpdateExpendituresRequest;
-use stdClass;
 
 class ExpendituresController extends Controller
 {
@@ -175,5 +176,88 @@ class ExpendituresController extends Controller
     {
         $expenditures=Expenditures::find($expenditures);
         return Expenditures::destroy($expenditures);
+    }
+
+    /**
+     * update 
+     */
+    public function expendituresupdate(Request $request){
+        $data=[];
+        if ($request['criteria']) {
+            if ($request['user'] && $this->getEse($request['user']['id'])) {
+                if ($request['data'] && count($request['data'])>0) {
+                    try {
+                        $status="";
+                        switch ($request['criteria']) {
+                            case 'validate':
+                                $status="validated";
+                                break;
+                            case 'pending':
+                                $status="pending";
+                                break;
+                            case 'cancel':
+                                $status="cancelled";
+                                break;
+                            
+                            default:
+                                # code...
+                                break;
+                        }
+
+                        foreach ($request['data'] as $expenditure) {
+                            $finded=Expenditures::find($expenditure['id']);
+                            if ($finded){
+                                $finded['status']=$status;
+                                if ($status=="validated") {
+                                    $finded['is_validated']=true;
+                                }else{
+                                    $finded['is_validated']=false;
+                                } 
+                                
+                                $finded->save();
+                                array_push($data,$finded);
+                            }
+                         }
+                            return response()->json([
+                            "status"=>200,
+                            "message"=>"success",
+                            "error"=>null,
+                            "data"=>$data
+                        ]);
+                    } catch (Exception $th) {
+                        return response()->json([
+                            "status"=>500,
+                            "message"=>"error",
+                            "error"=>$th->getMessage(),
+                            "data"=>null
+                        ]);
+                    }
+                  
+                }else{
+                    return response()->json([
+                        "status"=>400,
+                        "message"=>"error",
+                        "error"=>"no data sent",
+                        "data"=>null
+                    ]); 
+                }
+            }else{
+                //unauthorized user
+                return response()->json([
+                    "status"=>400,
+                    "message"=>"error",
+                    "error"=>"unauthrized sent",
+                    "data"=>null
+                ]); 
+            }
+        }else{
+            //no criteria sent
+            return response()->json([
+                "status"=>400,
+                "message"=>"error",
+                "error"=>"no criteria sent",
+                "data"=>null
+            ]); 
+        }
     }
 }

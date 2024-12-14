@@ -20,6 +20,7 @@ class Expenditures extends Model
         'done_at',
         'beneficiary',
         'sync_status',
-        'enterprise_id'
+        'enterprise_id',
+        'status'
     ];
 }

@@ -731,6 +731,11 @@ Route::post('/weka/advancesalaries/byagent',[AdvancesalariesController::class,'i
 Route::post('/weka/advancesalaries/update',[AdvancesalariesController::class,'update']);
 Route::post('/weka/advancesalaries/delete',[AdvancesalariesController::class,'deleteadvance']);
 
+/**
+ * Weka Expenditures
+ */
+Route::post('/weka/expenditures/update',[ExpendituresController::class,'expendituresupdate']);
+
 
 
 

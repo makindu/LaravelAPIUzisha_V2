@@ -24,6 +24,7 @@ class CreateExpendituresTable extends Migration
             $table->boolean('is_validate')->nullable();
             $table->string('uuid')->nullable();
             $table->boolean('sync_status')->nullable();
+            $table->string('status')->default('pending')->nullable();
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
             $table->date('done_at')->nullable();

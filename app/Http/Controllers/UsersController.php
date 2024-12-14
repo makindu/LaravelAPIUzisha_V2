@@ -590,13 +590,9 @@ class UsersController extends Controller
 
         $moneys=collect(moneys::where("enterprise_id",$request['enterprise_id'])->get());
         $moneys->transform(function ($money) use($request){
-            $histories=requestHistory::join('funds as F','request_histories.fund_id','F.id')
-            ->join('moneys as M','F.money_id','M.id')
-            ->whereBetween('request_histories.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
-            ->where('F.money_id','=',$money['id'])
-            ->where('request_histories.enterprise_id','=',$request['enterprise_id'])
-            ->where('request_histories.type','=','withdraw')
-            ->get(['request_histories.*']); 
+            $histories=Expenditures::whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+            ->where('money_id','=',$money['id'])
+            ->get(); 
 
             $money['totalexpenditures']=$histories->sum('amount');
             return $money;
