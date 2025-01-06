@@ -13,6 +13,8 @@ use App\Models\StockHistoryController;
 use App\Models\CategoriesServicesController;
 use App\Http\Requests\StoreDepositControllerRequest;
 use App\Http\Requests\UpdateDepositControllerRequest;
+use App\Models\PricesCategories;
+use Exception;
 
 class DepositControllerController extends Controller
 {
@@ -99,6 +101,73 @@ class DepositControllerController extends Controller
         }
         
         return $deposits; 
+    }  
+    
+    /**
+     * For a specific users.. where he's affected
+     */
+    public function depositvaluationForUser(Request $request){
+        try {
+            $deposits=[];
+            $user=$this->getinfosuser($request['user_id']);
+            $enterprise=$this->getEse($user['id']);
+            if ($user['user_type']=='super_admin') {
+                $deposits=collect(DepositController::where('enterprise_id','=',$enterprise['id'])->get());
+                $deposits=$deposits->map(function ($deposit){
+                    $services=collect(DepositServices::join('services_controllers','deposit_services.service_id','=','services_controllers.id')
+                                                    ->where('deposit_id',$deposit['id'])
+                                                    ->where('services_controllers.type',1)
+                                                    ->get(['deposit_services.*']));
+                    $services->transform(function ($service){
+                        $price=PricesCategories::where('service_id',$service['id'])->where('principal',1)->get()->first();
+                        if ($price) {
+                            $service['total']=$price['price']*$service['available_qte'];
+                        }else{
+                            $service['total']=0;
+                        }
+                        return $service;
+                    });
+                    $deposit['total']=$services->sum('total');
+                    return $deposit;
+                });
+            } else {
+                $deposits=DepositsUsers::join('deposit_controllers as D','deposits_users.deposit_id','=','D.id')->where('deposits_users.user_id','=',$request->user_id)->get('D.*');
+                $deposits=$deposits->map(function ($deposit){
+                    $services=collect(DepositServices::join('services_controllers','deposit_services.service_id','=','services_controllers.id')
+                                                    ->where('deposit',$deposit['id'])
+                                                    ->where('services_controllers.type',1)
+                                                    ->get());
+                    $services->transform(function ($service){
+                        $price=PricesCategories::where('service_id',$service['id'])->where('principal',1)->first();
+                        if ($price) {
+                            $service['total']=$price['price']*$service['available_qte'];
+                        }else{
+                            $service['total']=0;
+                        }
+                        return $service;
+                    });
+                    $deposit['total']=$services->sum('total');
+                    return $deposit;
+                });
+            }
+            
+            return response()->json([
+                'message'=>'success',
+                'status'=>200,
+                'error'=>null,
+                'deposits'=>$deposits,
+                'totalgeneral'=>$deposits->sum('total')
+            ]); 
+        } catch (Exception $th) {
+            return response()->json([
+                'message'=>'error',
+                'status'=>500,
+                'error'=>$th->getMessage(),
+                'deposits'=>null,
+                'totalgeneral'=>0
+            ]); 
+        }
+       
     }
     
     /**

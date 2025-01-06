@@ -28,7 +28,8 @@ class CreateServicesControllersTable extends Migration
             $table->string('status')->nullable()->default('available');
             $table->string('service_usage')->nullable()->default('selling');
             $table->double('point')->nullable();
-            $table->double('nbrgros')->nullable();
+            $table->double('point')->nullable();
+            $table->double('coast')->nullable();
             $table->boolean('bonus_applicable')->nullable();
             $table->boolean('has_vat')->nullable();
             $table->double('tva')->nullable();

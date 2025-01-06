@@ -74,6 +74,7 @@ use App\Http\Controllers\WekamemberaccountsController;
 use App\Http\Controllers\EnterprisesinvoicesController;
 use App\Http\Controllers\DecisionDecisionteamController;
 use App\Http\Controllers\DetailsInvoicesStatusController;
+use App\Http\Controllers\UzishafuelconsumptionController;
 use App\Http\Controllers\ServicesadditionalfeesController;
 use App\Http\Controllers\StockHistoryControllerController;
 use App\Http\Controllers\UnitOfMeasureControllerController;
@@ -85,6 +86,7 @@ use App\Http\Controllers\WekaAccountsTransactionsController;
 use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
+use App\Http\Controllers\ProviderspaymentsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -284,6 +286,7 @@ Route::get('/deposit/articlesdepositpaginated/{depositid}',[ServicesControllerCo
 Route::get('/deposit/all-articles-paginated/{userid}',[ServicesControllerController::class,'depositsandarticlespaginated']);
 Route::post('/deposit/reset',[DepositControllerController::class,'reset']);
 Route::post('/deposit/rollbackall',[DepositControllerController::class,'rollbackdepositquantities']);
+Route::post('/deposits/generalstockvaluation',[DepositControllerController::class,'depositvaluationForUser']);
 
 //Deposits users
 Route::apiResource('depositsusers',DepositsUsersController::class);
@@ -371,13 +374,19 @@ Route::post('/customers/importation',[CustomerControllerController::class,'impor
 //PROVIDERS
 Route::apiResource('providers',ProviderControllerController::class);
 Route::get('/providers/enterprise/{id}',[ProviderControllerController::class,'index']);
+Route::get('/providers/financialsituation/{enterpriseid}',[ProviderControllerController::class,'financialsituation']);
+Route::get('/providers/debtbyprovider/{providerid}',[ProviderControllerController::class,'debtsprovider']);
 Route::put('/providers/update/{id}',[ProviderControllerController::class,'update2']);
 Route::patch('/providers/update/{id}',[ProviderControllerController::class,'update2']);
 Route::delete('/providers/delete/{id}',[ProviderControllerController::class,'delete']);
 Route::get('/providers/stockhistory/{id}',[ProviderControllerController::class,'stockhistory']);
+Route::post('/providers/periodicstockhistory',[ProviderControllerController::class,'periodicstockhistory']);
 Route::get('/providers/stockhistory/cash/{id}',[ProviderControllerController::class,'cashstockhistory']);
 Route::get('/providers/stockhistory/debt/{id}',[ProviderControllerController::class,'debtstockhistory']);
 Route::post('/providers/importation',[ProviderControllerController::class,'importation']);
+
+Route::post('/providers/debt/payment',[ProviderspaymentsController::class,'store']);
+Route::post('/providers/paymentslistbyprovider',[ProviderspaymentsController::class,'paymentsbyprovider']);
 
 //tables
 Route::apiResource('tables',TablesController::class);
@@ -682,6 +691,7 @@ Route::post('/weka/financedashboard/{userid}',[UsersController::class,'wekafinan
 Route::post('/weka/transactions/new',[WekaAccountsTransactionsController::class,'store']);
 Route::post('/weka/transactions/syncing',[WekaAccountsTransactionsController::class,'syncing']);
 Route::post('/weka/transactions',[WekaAccountsTransactionsController::class,'index']);
+Route::post('/weka/mobile-dashboard',[WekaAccountsTransactionsController::class,'dashboardmobileatwekaakiba']);
 Route::post('/weka/transactions/update',[WekaAccountsTransactionsController::class,'updatetransactions']);
 
 Route::post('/weka/members/newmember',[UsersController::class,'newwekamember']);
@@ -735,6 +745,12 @@ Route::post('/weka/advancesalaries/delete',[AdvancesalariesController::class,'de
  * Weka Expenditures
  */
 Route::post('/weka/expenditures/update',[ExpendituresController::class,'expendituresupdate']);
+
+/**
+ * CERUBU MODULES
+ */
+Route::post('/testcerubu',[UzishafuelconsumptionController::class,'store']);
+Route::post('/testcerubu/report',[UzishafuelconsumptionController::class,'index']);
 
 
 

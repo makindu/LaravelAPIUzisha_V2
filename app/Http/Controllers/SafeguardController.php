@@ -22,6 +22,7 @@ use App\Models\Invoices;
 use App\Models\notebooks;
 use App\Models\ServicesController;
 use App\Models\StockHistoryController;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -204,12 +205,12 @@ class SafeguardController extends Controller
                                         }
 
 
-                                } catch (\Throwable $th) {
+                                } catch (Exception $th) {
                                     //throw $th;
                                 }
                             }
                         }
-                    } catch (\Throwable $th) {
+                    } catch (Exception $th) {
                         //throw $th;
                     }
     

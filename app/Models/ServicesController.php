@@ -25,6 +25,7 @@ class ServicesController extends Model
        'has_vat',
        'enterprise_id',
        'status',
-       'service_usage'	
+       'service_usage',
+       'coast'	
     ];
 }

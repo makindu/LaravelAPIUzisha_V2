@@ -131,6 +131,8 @@ class StockHistoryControllerController extends Controller
                 if($request['price']){
                     $request['total']=$request['quantity']*$request['price'];
                 }
+
+                $request['uuid']=$this->getUuId('C','SH');
                 return $this->show(StockHistoryController::create($request->all()));
             }
            

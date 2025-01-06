@@ -6,8 +6,12 @@ use App\Models\wekaAccountsTransactions;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorewekaAccountsTransactionsRequest;
 use App\Http\Requests\UpdatewekaAccountsTransactionsRequest;
+use App\Models\Invoices;
+use App\Models\moneys;
 use App\Models\User;
+use App\Models\wekafirstentries;
 use App\Models\wekamemberaccounts;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -224,6 +228,135 @@ class WekaAccountsTransactionsController extends Controller
         }
     }
 
+    /**
+     * Dashboard mobile AT WEKA AKIBA
+     */
+    public function dashboardmobileatwekaakiba(Request $request){
+         // return $request;
+         $list=[];
+         if(isset($request->from)==false && empty($request->from) && isset($request->to)==false && empty($request->to)){
+             $request['from']= date('Y-m-d');
+             $request['to']=date('Y-m-d');
+         }
+ 
+         if (isset($request->user_id)) {
+             $actualuser=$this->getinfosuser($request->user_id);
+             if ($actualuser) {
+                 $ese=$this->getEse($actualuser->id);
+                 if ($ese) {
+                    $moneys=collect(moneys::where("enterprise_id",$ese['id'])->get());
+                    //report for no super admin users
+                    try {
+                        $list1=collect(wekaAccountsTransactions::where('enterprise_id',$ese['id'])
+                        ->where('user_id',$actualuser->id)
+                        ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                        ->get());
+                        $list=$list1->transform(function($item){
+                            return $this->show($item);
+                        });
+            
+                        
+                        $sells=$moneys->transform(function ($money) use($request){
+                            $invoices=Invoices::whereBetween('date_operation',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                            ->where('money_id','=',$money['id'])
+                            ->where('type_facture','<>','proforma')
+                            ->where('edited_by_id',$request->user_id)
+                            ->get();
+                            $money['totalsells']=$invoices->sum('netToPay');
+                            return $money;
+                        });
+                
+                        $moneysmises=collect(moneys::where("enterprise_id",$ese['id'])->get());
+                        $mises=$moneysmises->transform(function ($money) use($request){
+                            $transactions=wekaAccountsTransactions::join('wekamemberaccounts as WA','weka_accounts_transactions.member_account_id','WA.id')
+                            ->join('moneys as M','WA.money_id','M.id')
+                            ->whereBetween('weka_accounts_transactions.done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                            ->where('WA.money_id','=',$money['id'])
+                            ->where('weka_accounts_transactions.user_id',$request->user_id)
+                            ->get();
+                
+                            $money['totaltransactions']=$transactions->sum('amount');
+                
+                            return $money;
+                        });
+
+                        Carbon::setLocale('fr');
+                        $actualmonth=Carbon::now()->translatedFormat('F Y');
+                        $startOfMonth = Carbon::now()->startOfMonth(); // Début du mois
+                        $endOfMonth = Carbon::now()->endOfMonth();     // Fin du mois
+
+                        $moneysfirstentries=collect(moneys::where("enterprise_id",$ese['id'])->get());
+                        $monthlyfirstentries=$moneysfirstentries->transform(function ($money) use($request,$startOfMonth,$endOfMonth){
+                            $mouvements=wekafirstentries::whereBetween('done_at',[$startOfMonth.' 00:00:00', $endOfMonth.' 23:59:59'])
+                            ->where('money_id','=',$money['id'])
+                            ->where('collector_id',$request->user_id)
+                            ->get();
+                
+                            $money['totalfirstentries']=$mouvements->sum('amount');
+                
+                            return $money;
+                        });
+
+                        $moneysmonthlysells=collect(moneys::where("enterprise_id",$ese['id'])->get());
+                        $monthlysells=$moneysmonthlysells->transform(function ($money) use($request,$startOfMonth,$endOfMonth){
+                            $invoices=Invoices::whereBetween('date_operation',[$startOfMonth.' 00:00:00', $endOfMonth.' 23:59:59'])
+                            ->where('money_id','=',$money['id'])
+                            ->where('type_facture','<>','proforma')
+                            ->where('edited_by_id',$request->user_id)
+                            ->get();
+                            $money['totalsells']=$invoices->sum('netToPay');
+                            return $money;
+                        });
+                    
+                
+                        return response()->json([
+                            "status"=>200,
+                            "message"=>"success",
+                            "error"=>null,
+                            "dailytransactions"=>$list,
+                            "dailysells"=>$sells,
+                            "dailymises"=>$mises,
+                            "monthlyfirstentries"=>$monthlyfirstentries,
+                            "monthlysells"=>$monthlysells,
+                            "actualmonth"=>$actualmonth,
+                            "startofthemonth" =>$startOfMonth->translatedFormat('d F Y'),
+                            "endofthemonth" =>$endOfMonth->translatedFormat('d F Y'),
+                        ]);
+                    } catch (Exception $th) {
+                        return response()->json([
+                            "status"=>500,
+                            "message"=>"error",
+                            "error"=>$th->getMessage(),
+                            "data"=>null
+                        ]);
+                    }
+                 }else{
+                     return response()->json([
+                         "status"=>400,
+                         "message"=>"error",
+                         "error"=>"unknown enterprise",
+                         "data"=>null
+                     ]);
+                 }
+ 
+             }else{
+                 return response()->json([
+                     "status"=>400,
+                     "message"=>"error",
+                     "error"=>"unknown user",
+                     "data"=>null
+                 ]);
+             }
+         }
+         else{
+             return response()->json([
+                 "status"=>400,
+                 "message"=>"error",
+                 "error"=>"user not sent",
+                 "data"=>null
+             ]);
+         }
+    }
     /**
      *Report transactions grouped by  
      */

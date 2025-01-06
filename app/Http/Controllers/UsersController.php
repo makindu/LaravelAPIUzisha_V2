@@ -711,6 +711,18 @@ class UsersController extends Controller
         });
 
         return $moneys;
+    }  
+    
+    public function wekafinancesoldaccounts(Request $request){
+    
+        $moneys=collect(moneys::where('enterprise_id',$request['enterprise_id'])->get());
+        $moneys->transform(function ($money) use($request){
+            $money['sold']=0;
+            $money['sold']=(wekamemberaccounts::where('enterprise_id','=', $request['enterprise_id'])->where('money_id',$money['id']))->sum('sold');
+          return $money;
+        });
+
+        return $moneys;
     }
 
     public function wekafinancedashboard(Request $request,$userId){
@@ -755,7 +767,7 @@ class UsersController extends Controller
                         $periodicsells=$this->wekagetsells(new Request(['from'=>$request['from'],'to'=>$request['to'],'enterprise_id'=>$ese['id']]));
                         $periodictotalrevenu=$this->wekafinancetotalrevenu(new Request(['firstentries'=>$periodicfirstentries,'sells'=>$periodicsells,'enterprise_id'=>$ese['id']]));
                         $periodicbefenefits=$this->wekafinancebenefits(new Request(['totalrevenu'=>$periodictotalrevenu,'expenditures'=>$periodicexpenditures,'enterprise_id'=>$ese['id']]));
-                        
+                        $soldaccountsnet=$this->wekafinancesoldaccounts(new Request(['enterprise_id'=>$ese['id']]));
                         $data=[
                             'date'=>$dateoperation,
                             'periodictotalrevenu'=>$periodictotalrevenu,
@@ -781,6 +793,7 @@ class UsersController extends Controller
                             'depositmembers'=>$depositmembers,
                             'withdrawmembers'=>$withdrawmembers,
                             'soldtransactions'=>$soldtransactions,
+                            'soldaccountsnet'=>$soldaccountsnet,
                             'periodicdashboard'=>$periodicdashboard
                         ]
                      ]);
@@ -1650,7 +1663,7 @@ class UsersController extends Controller
             ->get('usersenterprises.*'));
         
             $listdata=$list->map(function ($item){
-                return $this->show(user::find($item['user_id']));
+                return $this->showweka(user::find($item['user_id']));
             });
             return $listdata;
         }else{
