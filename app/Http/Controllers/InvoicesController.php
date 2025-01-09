@@ -1721,6 +1721,7 @@ class InvoicesController extends Controller
                               'uuid'=>$this->getUuId('C','ST'),
                               'depot_id'=>$detail['deposit_id'],
                               'quantity_before'=>$stockbefore->available_qte,
+                              'total'=> $detail['total'],
                           ]);
                           $this->withdrawadjust($detail['deposit_id'],$detail['quantity'],$detail['price'],$newstockhistory->id,$detail['service_id']);
                       }
@@ -2118,6 +2119,7 @@ public function profitCalculations($stockhistory, $operation_withdraw, $quantity
                                 'uuid'=>$this->getUuId('C','ST'),
                                 'depot_id'=>$detail['deposit_id'],
                                 'quantity_before'=>$stockbefore->available_qte,
+                                'total'=>$detail['total'],
                             ]);
                         }
                     }

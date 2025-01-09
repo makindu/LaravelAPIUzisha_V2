@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use App\Models\StockHistoryController;
 use App\Http\Requests\UpdateServicesControllerRequest;
 use App\Models\InvoiceDetails;
+use App\Models\stockhistorypayments;
+use Carbon\Carbon;
 use Exception;
 use stdClass;
 
@@ -26,6 +28,220 @@ class ServicesControllerController extends Controller
         return $listdata;
     }  
     
+    /**
+     * financial summary by service
+     */
+    public function financialsummarybyservice(Request $request){
+        if ($request['service_id']) {
+            $service=ServicesController::find($request['service_id']);
+            if ($service) {
+                try {
+                    
+                    $stocktotal=StockHistoryController::select(DB::raw('count(id) as total_stock'),DB::raw('sum(quantity*price) as total_ca'))
+                    ->where('service_id','=',$service['id'])
+                    ->get()->first();
+                    
+                    $cash=StockHistoryController::select(DB::raw('sum(quantity*price) as total_cash'))
+                    ->where('type','=','withdraw')
+                    ->where('service_id','=',$service['id'])
+                    ->where('type_approvement','=','cash')
+                    ->get()->first();
+
+                    $debts=StockHistoryController::select(DB::raw('sum(quantity*price) as total_debts'))
+                            ->where('type','=','withdraw')
+                            ->where('service_id','=',$service['id'])
+                            ->where('type_approvement','=','credit')
+                            ->get()->first();
+
+                    $advances=stockhistorypayments::select(DB::raw('sum(amount) as total_advances'))
+                    ->where('service_id','=',$service['id'])
+                    ->get()->first();
+
+                    $service['cash']=$cash['total_cash']?$cash['total_cash']:0;   
+                    $service['debts']=$debts['total_debts']?$debts['total_debts']:0;   
+                    $service['advances']=$advances['total_advances']?$advances['total_advances']:0;   
+                    $service['sold']=$service['debts']-$service['advances'];   
+                    $service['totalstockprovided']=$stocktotal['total_stock']?$stocktotal['total_stock']:0;   
+                    $service['totalca']=$stocktotal['total_ca']?$stocktotal['total_ca']:0;
+
+                    return response()->json([
+                        'message'=>'success',
+                        'status'=>200,
+                        'error'=>null,
+                        'data'=>$service
+                    ]);  
+                } catch (Exception $th) {
+                    return response()->json([
+                        'message'=>'error',
+                        'status'=>500,
+                        'error'=>$th->getMessage(),
+                        'data'=>null
+                    ]);
+                }
+            }else{
+                return response()->json([
+                    'message'=>'error',
+                    'status'=>401,
+                    'error'=>'not find',
+                    'data'=>null
+                ]);   
+            }
+        }else{
+            return response()->json([
+                'message'=>'error',
+                'status'=>401,
+                'error'=>'not sent',
+                'data'=>null
+            ]); 
+        }
+    }
+
+    /**
+     * Gettings periodic stock history by service
+     */
+    public function periodicstockhistory(Request $request){
+        if (isset($request['criteria']) && !empty($request['criteria'])) {
+            if (isset($request['service_id']) && !empty($request['service_id'])){
+                try {
+                    $service=ServicesController::find($request['service_id']);
+                    if ($service) {
+                        switch ($request['criteria']) {
+                            case 'monthly':
+                                Carbon::setLocale('fr');
+                                $period=Carbon::now()->translatedFormat('F Y');
+                                $startOfMonth = Carbon::now()->startOfMonth(); // Début du mois
+                                $endOfMonth = Carbon::now()->endOfMonth();
+                                break;
+                            
+                            default:
+                                # code...
+                                break;
+                        }
+    
+                        $stockhistoryctrl= new StockHistoryControllerController();
+                        $list=collect(StockHistoryController::where('service_id','=',$request['service_id'])
+                        ->whereBetween('done_at',[$startOfMonth.' 00:00:00', $endOfMonth.' 23:59:59'])
+                        ->get());
+                        $list=$list->map(function($history) use($stockhistoryctrl){
+                            return $stockhistoryctrl->show($history);
+                        });
+
+                        return response()->json([
+                            'message'=>'success',
+                            'status'=>200,
+                            'error'=>null,
+                            'data'=>$list,
+                            'period'=>$period
+                        ]);
+
+                    }else{
+                        return response()->json([
+                            'message'=>'error',
+                            'status'=>400,
+                            'error'=>'service not fund',
+                            'data'=>null
+                        ]);
+                    }
+                } catch (Exception $th) {
+                    return response()->json([
+                        'message'=>'error',
+                        'status'=>500,
+                        'error'=>$th->getMessage(),
+                        'data'=>null
+                    ]); 
+                }
+               
+            }else{
+                return response()->json([
+                    'message'=>'error',
+                    'status'=>400,
+                    'error'=>'no service sent',
+                    'data'=>null
+                ]); 
+            }
+           
+        }else{
+            return response()->json([
+                'message'=>'error',
+                'status'=>400,
+                'error'=>'no criteria sent',
+                'data'=>null
+            ]); 
+        }
+    }
+    
+    /**
+     * Gettings periodic stock history by service
+     */
+    public function periodicsell(Request $request){
+        if (isset($request['criteria']) && !empty($request['criteria'])) {
+            if (isset($request['service_id']) && !empty($request['service_id'])){
+                try {
+                    $service=ServicesController::find($request['service_id']);
+                    if ($service) {
+                        switch ($request['criteria']) {
+                            case 'monthly':
+                                Carbon::setLocale('fr');
+                                $period=Carbon::now()->translatedFormat('F Y');
+                                $startOfMonth = Carbon::now()->startOfMonth(); // Début du mois
+                                $endOfMonth = Carbon::now()->endOfMonth();
+                                break;
+                            
+                            default:
+                                # code...
+                                break;
+                        }
+    
+                        $mouvements=InvoiceDetails::join('invoices as I','invoice_details.invoice_id','=','I.id')
+                        ->whereBetween('I.date_operation',[$startOfMonth.' 00:00:00',$endOfMonth.' 23:59:59'])
+                        ->where('invoice_details.service_id','=',$service['id'])
+                        ->where('I.type_facture','<>','proforma')
+                        ->get(['invoice_details.invoice_id','invoice_details.quantity','invoice_details.price','invoice_details.total','invoice_details.service_id','I.type_facture','I.date_operation','I.uuid']);
+                      
+                        return response()->json([
+                            'message'=>'success',
+                            'status'=>200,
+                            'error'=>null,
+                            'data'=>$mouvements,
+                            'period'=>$period
+                        ]);
+
+                    }else{
+                        return response()->json([
+                            'message'=>'error',
+                            'status'=>400,
+                            'error'=>'service not fund',
+                            'data'=>null
+                        ]);
+                    }
+                } catch (Exception $th) {
+                    return response()->json([
+                        'message'=>'error',
+                        'status'=>500,
+                        'error'=>$th->getMessage(),
+                        'data'=>null
+                    ]); 
+                }
+               
+            }else{
+                return response()->json([
+                    'message'=>'error',
+                    'status'=>400,
+                    'error'=>'no service sent',
+                    'data'=>null
+                ]); 
+            }
+           
+        }else{
+            return response()->json([
+                'message'=>'error',
+                'status'=>400,
+                'error'=>'no criteria sent',
+                'data'=>null
+            ]); 
+        }
+    }
+
     public function subserviceslist($enterprise_id)
     {
         $list=collect(ServicesController::where('enterprise_id','=',$enterprise_id)->where('type','=',3)->orderby('name','asc')->get());
@@ -69,11 +285,11 @@ class ServicesControllerController extends Controller
                 "error"=>null,
                 "data"=>$list
             ]);
-        } catch (\Throwable $th) {
+        } catch (Exception $th) {
              return response()->json([
                     "message"=>"error",
                     "status"=>500,
-                    "error"=>$th,
+                    "error"=>$th->getMessage(),
                     "data"=>null
                 ]);
         }
@@ -635,6 +851,12 @@ class ServicesControllerController extends Controller
     public function store(Request $request)
     {
         if(isset($request->name) && !empty($request->name)){
+            //if exists service
+            $ifexists=ServicesController::where('name',$request->name)
+                        ->where('enterprise_id',$request->enterprise_id)->get();
+            if (($ifexists->count())>0) {
+                abort(403, 'name duplicated');
+            }
             $new=ServicesController::create($request->all());
             if(isset($request->pricing)){
                 foreach ($request->pricing as $key=>$pricing) {

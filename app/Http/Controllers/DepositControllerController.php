@@ -134,17 +134,17 @@ class DepositControllerController extends Controller
                 $deposits=DepositsUsers::join('deposit_controllers as D','deposits_users.deposit_id','=','D.id')->where('deposits_users.user_id','=',$request->user_id)->get('D.*');
                 $deposits=$deposits->map(function ($deposit){
                     $services=collect(DepositServices::join('services_controllers','deposit_services.service_id','=','services_controllers.id')
-                                                    ->where('deposit',$deposit['id'])
-                                                    ->where('services_controllers.type',1)
-                                                    ->get());
+                    ->where('deposit_id',$deposit['id'])
+                    ->where('services_controllers.type',1)
+                    ->get(['deposit_services.*']));
                     $services->transform(function ($service){
-                        $price=PricesCategories::where('service_id',$service['id'])->where('principal',1)->first();
-                        if ($price) {
-                            $service['total']=$price['price']*$service['available_qte'];
-                        }else{
-                            $service['total']=0;
-                        }
-                        return $service;
+                    $price=PricesCategories::where('service_id',$service['id'])->where('principal',1)->get()->first();
+                    if ($price) {
+                    $service['total']=$price['price']*$service['available_qte'];
+                    }else{
+                    $service['total']=0;
+                    }
+                    return $service;
                     });
                     $deposit['total']=$services->sum('total');
                     return $deposit;

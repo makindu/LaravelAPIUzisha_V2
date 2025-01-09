@@ -348,6 +348,8 @@ Route::get('/services/depositarticles/{depositid}',[ServicesControllerController
 Route::get('/services/depositall/{depositid}',[ServicesControllerController::class,'depositall']);
 Route::post('/services/importation',[ServicesControllerController::class,'importation']);
 Route::post('/services/enterprise/deleteall',[ServicesControllerController::class,'resetallservices']);
+Route::post('/services/periodicstockhistory',[ServicesControllerController::class,'periodicstockhistory']);
+Route::post('/services/periodicsell',[ServicesControllerController::class,'periodicsell']);
 
 Route::apiResource('pricescategories',PricesCategoriesController::class);
 Route::put('/pricescategories/update/{id}',[PricesCategoriesController::class,'update2']);
@@ -657,6 +659,7 @@ Route::post('/services/searchbyword/enterprise',[ServicesControllerController::c
 Route::post('/services/searchbycodebar/enterprise',[ServicesControllerController::class,'searchbycodebar']);
 Route::post('/services/updateAll',[ServicesControllerController::class,'updateallservices']);
 Route::post('/services/availablesunavailablesservices',[ServicesControllerController::class,'availablesunavailablesservices']);
+Route::post('/services/financialsummarybyservice',[ServicesControllerController::class,'financialsummarybyservice']);
 
 //DEPOSIT AND SERVICES
 Route::post('/deposit/services/searchbywords',[ServicesControllerController::class,'searchinarticlesdeposit']);
