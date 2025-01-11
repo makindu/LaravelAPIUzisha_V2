@@ -26,7 +26,78 @@ class ServicesControllerController extends Controller
             return $this->show($item);
         });
         return $listdata;
-    }  
+    }
+    
+    /**
+     * Group services by types and count them
+     */
+    public function servicesgroupedbytypes(Request $request){
+        try {
+            $servicesGroupedByType =collect(ServicesController::select('type',DB::raw('count(*) as count'))
+            ->where('enterprise_id','=',$request['enterprise_id'])
+            ->groupBy('type')
+            ->get());
+            $servicesGroupedByType->transform(function ($type){
+                switch ($type['type']) {
+                    case '1':
+                        $type['name']="Articles";
+                        break; 
+                    case '2':
+                        $type['name']="Services";
+                        break;
+                    case '3':
+                        $type['name']="Accompagnements";
+                        break;
+                    
+                    default:
+                        # code...
+                        break;
+                }
+                return $type;
+            });
+
+            return response()->json([
+                'message'=>'success',
+                'status'=>200,
+                'error'=>null,
+                'data'=>$servicesGroupedByType 
+            ]); 
+        } catch (Exception $th) {
+            return response()->json([
+                'message'=>'error',
+                'status'=>500,
+                'error'=>$th->getMessage(),
+                'data'=>null
+            ]);
+        }
+       
+    }
+     /**
+     * services by types
+     */
+    public function servicesbytypes(Request $request){
+        try {
+    
+            $list=collect(ServicesController::whereIn('type',$request['types'])->get());
+            $list->transform(function ($service){
+                return $this->show($service);
+            });
+
+            return response()->json([
+                'message'=>'success',
+                'status'=>200,
+                'error'=>null,
+                'data'=>$list
+            ]); 
+        } catch (Exception $th) {
+            return response()->json([
+                'message'=>'error',
+                'status'=>500,
+                'error'=>$th->getMessage(),
+                'data'=>null
+            ]);
+        }
+    }
     
     /**
      * financial summary by service

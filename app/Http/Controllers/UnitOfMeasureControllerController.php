@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\UnitOfMeasureController;
 use App\Http\Requests\StoreUnitOfMeasureControllerRequest;
 use App\Http\Requests\UpdateUnitOfMeasureControllerRequest;
+use App\Models\ServicesController;
+use Exception;
+use Illuminate\Support\Facades\DB;
 
 class UnitOfMeasureControllerController extends Controller
 {
@@ -16,7 +19,39 @@ class UnitOfMeasureControllerController extends Controller
      */
     public function index($enterprise_id)
     {
-        return UnitOfMeasureController::where('enterprise_id','=',$enterprise_id)->get();
+        $list=collect(UnitOfMeasureController::where('enterprise_id','=',$enterprise_id)->get());
+        $list->transform(function ($uom){
+            return $this->show($uom);
+        });
+
+        return $list;
+    }
+
+    /**
+     * services by UOM
+     */
+    public function servicesbyuom(Request $request){
+        try {
+            $servicectrl = new ServicesControllerController();
+            $list=collect(ServicesController::whereIn('uom_id',$request['uoms'])->get());
+            $list->transform(function ($service) use ($servicectrl){
+                return $servicectrl->show($service);
+            });
+
+            return response()->json([
+                'message'=>'success',
+                'status'=>200,
+                'error'=>null,
+                'data'=>$list
+            ]); 
+        } catch (Exception $th) {
+            return response()->json([
+                'message'=>'error',
+                'status'=>500,
+                'error'=>$th->getMessage(),
+                'data'=>null
+            ]);
+        }
     }
 
     /**
@@ -48,7 +83,12 @@ class UnitOfMeasureControllerController extends Controller
      */
     public function show(UnitOfMeasureController $unitOfMeasureController)
     {
-        return UnitOfMeasureController::find($unitOfMeasureController);
+        $services=ServicesController::select(DB::raw('count(id) as nbrservices'))
+        ->where('uom_id','=',$unitOfMeasureController->id)
+        ->get()->first();
+
+        $unitOfMeasureController['nbrservices']=$services['nbrservices'];
+        return $unitOfMeasureController;
     }
 
     /**

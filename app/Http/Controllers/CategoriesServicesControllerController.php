@@ -9,6 +9,9 @@ use App\Models\DepositsCategories;
 use App\Models\CategoriesServicesController;
 use App\Http\Requests\StoreCategoriesServicesControllerRequest;
 use App\Http\Requests\UpdateCategoriesServicesControllerRequest;
+use App\Models\ServicesController;
+use Exception;
+use Illuminate\Support\Facades\DB;
 
 class CategoriesServicesControllerController extends Controller
 {
@@ -71,6 +74,34 @@ class CategoriesServicesControllerController extends Controller
         return $this->show($new);
     }
 
+     /**
+     * services by categories
+     */
+    public function servicesbycategories(Request $request){
+        try {
+            $servicectrl = new ServicesControllerController();
+            $list=collect(ServicesController::whereIn('category_id',$request['categories'])->get());
+            $list->transform(function ($service) use ($servicectrl){
+                return $servicectrl->show($service);
+            });
+
+            return response()->json([
+                'message'=>'success',
+                'status'=>200,
+                'error'=>null,
+                'data'=>$list
+            ]); 
+        } catch (Exception $th) {
+            return response()->json([
+                'message'=>'error',
+                'status'=>500,
+                'error'=>$th->getMessage(),
+                'data'=>null
+            ]);
+        }
+    }
+
+
     /**
      * Display the specified resource.
      *
@@ -81,7 +112,10 @@ class CategoriesServicesControllerController extends Controller
     {
         $categ=CategoriesServicesController::find($categoriesServicesController->id);
         $subcateg=CategoriesServicesController::where('parent_id','=',$categoriesServicesController->id)->get();
-        return ['category'=>$categ,'subcategories'=>$subcateg];
+        $services=ServicesController::select(DB::raw('count(id) as nbrservices'))
+        ->where('category_id','=',$categoriesServicesController->id)
+        ->get()->first();
+        return ['category'=>$categ,'subcategories'=>$subcateg,'nbrservices'=>$services['nbrservices']];
     }
 
     /**
