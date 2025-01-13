@@ -30,20 +30,15 @@ class UnitOfMeasureControllerController extends Controller
     /**
      * services by UOM
      */
-    public function servicesbyuom(Request $request){
+    public function servicesbyuom($uomid){
         try {
             $servicectrl = new ServicesControllerController();
-            $list=collect(ServicesController::whereIn('uom_id',$request['uoms'])->get());
-            $list->transform(function ($service) use ($servicectrl){
+            $list=ServicesController::where('uom_id',$uomid)->orderby('name')->paginate(20);
+            $list->getCollection()->transform(function ($service) use ($servicectrl){
                 return $servicectrl->show($service);
             });
 
-            return response()->json([
-                'message'=>'success',
-                'status'=>200,
-                'error'=>null,
-                'data'=>$list
-            ]); 
+            return $list;
         } catch (Exception $th) {
             return response()->json([
                 'message'=>'error',

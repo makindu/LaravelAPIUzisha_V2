@@ -15,6 +15,7 @@ use App\Models\InvoiceDetails;
 use App\Models\stockhistorypayments;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use stdClass;
 
 class ServicesControllerController extends Controller
@@ -77,18 +78,21 @@ class ServicesControllerController extends Controller
      */
     public function servicesbytypes(Request $request){
         try {
+
+            // return $request;
+            $typesent=$request->query('typesent');
+            $enterprise_id=$request->query('enterprise_id');
     
-            $list=collect(ServicesController::whereIn('type',$request['types'])->get());
-            $list->transform(function ($service){
+            $list=ServicesController::where('type',$typesent)
+            ->where('enterprise_id',$enterprise_id)
+            ->orderby('name')
+            ->paginate(20);
+            $list->appends($request->all());
+            $list->getCollection()->transform(function ($service){
                 return $this->show($service);
             });
 
-            return response()->json([
-                'message'=>'success',
-                'status'=>200,
-                'error'=>null,
-                'data'=>$list
-            ]); 
+            return $list; 
         } catch (Exception $th) {
             return response()->json([
                 'message'=>'error',
@@ -1081,11 +1085,18 @@ class ServicesControllerController extends Controller
     {
         $get=ServicesController::find($id);
         //delete all affectations on deposit
-        PricesCategories::where('service_id','=',$id)->delete();
-        DepositServices::where('service_id','=',$id)->delete();
-        StockHistoryController::where('service_id','=',$id)->delete();
-        InvoiceDetails::where('service_id','=',$id)->delete();
+       
+        $stockhistories=StockHistoryController::where('service_id','=',$id)->get();
+        $invoicesdetails=InvoiceDetails::where('service_id','=',$id)->get();
+        if ($stockhistories->count()<=0 &&  $invoicesdetails->count()<=0) {
+            PricesCategories::where('service_id','=',$id)->delete();
+            DepositServices::where('service_id','=',$id)->delete();
+            StockHistoryController::where('service_id','=',$id)->delete();
+            InvoiceDetails::where('service_id','=',$id)->delete();
 
-        return $get->delete();
+            return $get->delete();
+        }
+       
+        abort(401, 'non autorisé');
     }
 }

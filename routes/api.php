@@ -238,7 +238,7 @@ Route::apiResource('unitofmeasures',UnitOfMeasureControllerController::class);
 Route::get('/unitofmeasures/enterprise/{enterprise_id}',[UnitOfMeasureControllerController::class,'index']);
 Route::put('/unitofmeasures/update/{id}',[UnitOfMeasureControllerController::class,'update2']);
 Route::patch('/unitofmeasures/update/{id}',[UnitOfMeasureControllerController::class,'update2']);
-Route::post('/unitofmeasures/services',[UnitOfMeasureControllerController::class,'servicesbyuom']);
+Route::get('/unitofmeasures/services/{uomid}',[UnitOfMeasureControllerController::class,'servicesbyuom']);
 //Owners
 Route::apiResource('owners',OwnersController::class);
 //Enterprises (Entreprises)
@@ -334,7 +334,7 @@ Route::apiResource('categoriesServices',CategoriesServicesControllerController::
 Route::get('/categoriesServices/enterprise/{id}',[CategoriesServicesControllerController::class,'index']);
 Route::put('/categoriesServices/update/{id}',[CategoriesServicesControllerController::class,'update2']);
 Route::patch('/categoriesServices/update/{id}',[CategoriesServicesControllerController::class,'update2']);
-Route::post('/categoriesServices/services',[CategoriesServicesControllerController::class,'servicesbycategories']);
+Route::get('/categoriesServices/services/{categoryid}',[CategoriesServicesControllerController::class,'servicesbycategories']);
 
 Route::apiResource('services',ServicesControllerController::class);
 Route::get('/services/enterprise/{enterprise_id}',[ServicesControllerController::class,'index']);
@@ -352,7 +352,17 @@ Route::post('/services/importation',[ServicesControllerController::class,'import
 Route::post('/services/enterprise/deleteall',[ServicesControllerController::class,'resetallservices']);
 Route::post('/services/periodicstockhistory',[ServicesControllerController::class,'periodicstockhistory']);
 Route::post('/services/periodicsell',[ServicesControllerController::class,'periodicsell']);
-Route::post('/services/listbytypes',[ServicesControllerController::class,'servicesbytypes']);
+Route::get('/filterservicesbytypes',[ServicesControllerController::class,'servicesbytypes']);
+// Route::get('/filterservicesbytypes',function(Request $request){
+//     return $request->query();
+//     $type=$request->query('typesent');
+//     $enterprise=$request->query('enterprise_id');
+
+//     return response()->json([
+//         'typesent'=>$type,
+//         'enterprise'=>$enterprise
+//     ]);
+// });
 Route::post('/services/groupedbytypes',[ServicesControllerController::class,'servicesgroupedbytypes']);
 
 Route::apiResource('pricescategories',PricesCategoriesController::class);

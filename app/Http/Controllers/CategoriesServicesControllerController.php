@@ -77,20 +77,16 @@ class CategoriesServicesControllerController extends Controller
      /**
      * services by categories
      */
-    public function servicesbycategories(Request $request){
+    public function servicesbycategories($categoryid){
         try {
             $servicectrl = new ServicesControllerController();
-            $list=collect(ServicesController::whereIn('category_id',$request['categories'])->get());
-            $list->transform(function ($service) use ($servicectrl){
+            $list=ServicesController::where('category_id',$categoryid)->orderby('name')->paginate(20);
+            $list->getCollection()->transform(function ($service) use ($servicectrl){
                 return $servicectrl->show($service);
             });
 
-            return response()->json([
-                'message'=>'success',
-                'status'=>200,
-                'error'=>null,
-                'data'=>$list
-            ]); 
+            return $list;
+     
         } catch (Exception $th) {
             return response()->json([
                 'message'=>'error',
