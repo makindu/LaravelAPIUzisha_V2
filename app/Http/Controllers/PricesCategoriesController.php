@@ -7,7 +7,6 @@ use App\Models\PricesCategories;
 use App\Http\Requests\StorePricesCategoriesRequest;
 use App\Http\Requests\UpdatePricesCategoriesRequest;
 use App\Models\moneys;
-use Illuminate\Http\Request as HttpRequest;
 
 class PricesCategoriesController extends Controller
 {

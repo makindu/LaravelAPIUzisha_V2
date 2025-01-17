@@ -20,6 +20,8 @@ class CreatePricesCategoriesTable extends Migration
             $table->double('price');
             $table->integer('money_id')->nullable();
             $table->integer('principal')->nullable();
+            $table->double('from')->nullable();
+            $table->double('to')->nullable();
             $table->timestamps();
         });
     }

@@ -13,6 +13,8 @@ class PricesCategories extends Model
         'label',
         'price',
         'money_id',
-        'principal'
+        'principal',
+        'from',
+        'to'
     ];
 }
