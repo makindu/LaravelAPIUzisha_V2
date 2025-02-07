@@ -21,6 +21,9 @@ class requestHistory extends Model
         'enterprise_id',
         'sold',
         'done_at',
-        'account_id'
+        'account_id',
+        'status',
+        'beneficiary',
+        'provenance',
     ];
 }

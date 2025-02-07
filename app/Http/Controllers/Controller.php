@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DepositController;
 use App\Models\User;
 use App\Models\moneys;
 use App\Models\Enterprises;
@@ -115,5 +116,9 @@ class Controller extends BaseController
 
     public function getdefaultmoney($EseId){
         return moneys::where('enterprise_id','=',$EseId)->where('principal','=',1)->get()[0];
+    }
+
+    public function defaultdeposit($EseId){
+        return DepositController::where('enterprise_id','=',$EseId)->first();
     }
 }

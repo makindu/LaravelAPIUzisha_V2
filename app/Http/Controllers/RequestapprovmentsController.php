@@ -8,6 +8,7 @@ use App\Http\Requests\StorerequestapprovmentsRequest;
 use App\Http\Requests\UpdaterequestapprovmentsRequest;
 use App\Models\DepositServices;
 use App\Models\StockHistoryController;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -39,6 +40,42 @@ class RequestapprovmentsController extends Controller
     }
 
     /**
+     * Multiple stores
+     */
+    public function multiplestores(Request $request){
+        try {
+            if ($request['datasent'] && count($request['datasent'])>0) {
+                $data=[];
+                foreach ($request['datasent'] as $askapprovement) {
+                    $new=$this->store(new StorerequestapprovmentsRequest($askapprovement));
+                    array_push($data,$new);
+                }
+
+                return response()->json([
+                    "status"=>200,
+                    "message"=>"success",
+                    "error"=>null,
+                    "data"=>$data
+                ]);
+            }else{
+                return response()->json([
+                    "status"=>400,
+                    "message"=>"error",
+                    "error"=>'data not sent',
+                    "data"=>null
+                ]);
+            }
+        } catch (Exception $th) {
+            return response()->json([
+                "status"=>500,
+                "message"=>"error",
+                "error"=>$th->getMessage(),
+                "data"=>null
+            ]);
+        }
+    }
+
+    /**
      * Store a newly created resource in storage.
      *
      * @param  \App\Http\Requests\StorerequestapprovmentsRequest  $request
@@ -46,6 +83,13 @@ class RequestapprovmentsController extends Controller
      */
     public function store(StorerequestapprovmentsRequest $request)
     {
+        $total=requestapprovments::select(DB::raw('count(id) as total'))->where('enterprise_id',$request['enterprise_id'])->get('total')->first();
+        if ($total['total']) {
+            $request['reference']=$this->getUuId('C','RAP').$total['total'];
+        }else{
+            $request['reference']=$this->getUuId('C','RAP');
+        }
+        
         return $this->show(requestapprovments::create($request->all()));
     }
 
@@ -64,7 +108,7 @@ class RequestapprovmentsController extends Controller
         ->leftjoin('users as UR','requestapprovments.receiver_id','=','UR.id')
         ->leftjoin('services_controllers as S','requestapprovments.service_id','=','S.id')
         ->leftjoin('unit_of_measure_controllers as UM','S.uom_id','=','UM.id')
-        ->where('requestapprovments.id','=',$requestapprovments['id'])->get(['requestapprovments.*','UM.name as uom_name','UM.symbol as uom_symbol','S.name as service_name','S.description as service_description','DS.name as deposit_sender_name','DR.name as  deposit_receiver_name','US.user_name as sender_name'])[0];
+        ->where('requestapprovments.id','=',$requestapprovments['id'])->get(['requestapprovments.*','UM.name as uom_name','UM.symbol as uom_symbol','S.name as service_name','S.description as service_description','DS.name as deposit_sender_name','DR.name as  deposit_receiver_name','US.user_name as sender_name'])->first();
     }
 
     public function validation(Request $request){
@@ -97,7 +141,7 @@ class RequestapprovmentsController extends Controller
                         'note'=>$request->note,
                         'type'=>'withdraw',
                         'type_approvement'=>'cash',
-                        'uuid'=>$this->getUuId(),
+                        'uuid'=>$this->getUuId('C','RAP'),
                         'enterprise_id'=>$request->enterprise_id
                     ]);
                 }

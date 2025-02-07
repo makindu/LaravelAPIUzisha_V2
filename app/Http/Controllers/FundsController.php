@@ -277,11 +277,21 @@ class FundsController extends Controller
                                return  $requestHistoryCtrl->show($item);
                             });
 
+                            $summaries=response()->json([
+                                "totaltovalidate"=>$histories->where('status','pending')->count(),
+                                "totalvalidated"=>$histories->where('status','validated')->count(),
+                                "totalcancelled"=>$histories->where('status','cancelled')->count(),
+                                "totalwithoutaccount"=>$histories->where('account_id',null)->count(),
+                                "totalentries"=>$histories->where('type','entry')->count(),
+                                "totalwithdraw"=>$histories->where('type','withdraw')->count()
+                            ]);
+
                             return response()->json([
                                 "status"=>200,
                                 "message"=>"success",
                                 "error"=>null,
-                                "data"=>$histories
+                                "data"=>$histories,
+                                "summary"=> $summaries->original
                             ]);
                         } catch (Exception $th) {
                             return response()->json([

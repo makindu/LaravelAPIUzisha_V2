@@ -2,11 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreproviderspaymentsRequest;
 use App\Models\funds;
 use App\Models\requestHistory;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StorerequestHistoryRequest;
 use App\Http\Requests\UpdaterequestHistoryRequest;
+use App\Models\ProviderController;
+use App\Models\providerspayments;
+use App\Models\ServicesController;
+use App\Models\StockHistoryController;
+use Exception;
 use Illuminate\Http\Request;
 
 class RequestHistoryController extends Controller
@@ -45,6 +51,28 @@ class RequestHistoryController extends Controller
             $request['sold']=$fund->sold+$request->amount;
             $newvalue=requestHistory::create($request->all());
             DB::update('update funds set sold =sold + ? where id = ? ',[$request->amount,$request->fund_id]);
+            if ($request['provider_id'] && $request['service_id'] && $request['amount_provided']) {
+                $provider=ProviderController::find($request['provider_id']);
+                $service=ServicesController::find($request['service_id']);
+                StockHistoryController::create([
+                    'provider_id'=>$request['provider_id'],
+                    'service_id'=>$request['service_id'],
+                    'user_id'=>$request['user_id'],
+                    'quantity'=>$request['quantity_provided']?$request['quantity_provided']:1,
+                    'price'=>$request['quantity_provided']?($request['amount_provided']/$request['quantity_provided']):$request['amount_provided'],
+                    'type'=>'entry',
+                    'type_approvement'=>'credit',
+                    'enterprise_id'=>$request['enterprise_id'],
+                    'motif'=>$request['motif']?$request['motif']:'Location '.$service->name.' auprès du fournisseur '.$provider->providerName,
+                    'done_at'=>$request['done_at'],
+                    'date_operation'=>$request['done_at'],
+                    'uuid'=>$this->getUuId('C','ST'),
+                    'depot_id'=>$this->defaultdeposit($request['enterprise_id'])['id'],
+                    'quantity_before'=>0,
+                    'total'=>$request['quantity_provided']?($request['amount_provided']*$request['quantity_provided']):$request['amount_provided'],
+                    'requesthistory_id'=>$newvalue->id
+                ]);
+            }
             return  $this->show($newvalue);
         }else{
             //checking sold
@@ -54,8 +82,51 @@ class RequestHistoryController extends Controller
             if($sold>=$request->amount){
                 $request['sold']=$sold-$request->amount;
                 $newvalue=requestHistory::create($request->all());
-                DB::update('update funds set sold =sold - ? where id = ? ',[$request->amount,$request->fund_id]); 
-                return  $this->show($newvalue);
+                DB::update('update funds set sold =sold - ? where id = ? ',[$request->amount,$request->fund_id]);
+                $operationdone=$this->show($newvalue);
+                //payments to do
+                if ($request['provider_id']) {
+                    $amountSent=$request['amount'];
+                    //select all his debts
+                    $stockhistories=collect(StockHistoryController::leftjoin('providerspayments as P','stock_history_controllers.id','=','P.stock_history_id')
+                    ->select(DB::raw('stock_history_controllers.id as stock_history'),DB::raw('sum(P.amount) as totalpayed'),DB::raw('sum(stock_history_controllers.total) as totaldebts'))
+                    ->where('stock_history_controllers.type','entry')
+                    ->where('stock_history_controllers.provider_id',$request['provider_id'])
+                    ->where('stock_history_controllers.type_approvement','credit')
+                    ->groupByRaw('stock_history_controllers.id')
+                    ->havingRaw('totaldebts > totalpayed')
+                    ->orHavingRaw('totalpayed IS NULL')
+                    ->orderBy('stock_history_controllers.done_at','ASC')->get());
+                    while ($amountSent > 0) {
+                        foreach ($stockhistories as  $stock) {
+                            $amountToPaye=0;
+                            $soldDebt=($stock->totaldebts)-($stock->totalpayed?$stock->totalpayed:0);
+                            if ($soldDebt>=$amountSent) {
+                                $amountToPaye=$amountSent;
+                            }
+                            
+                            if ($soldDebt<$amountSent) {
+                                $amountToPaye=$soldDebt;   
+                            }
+    
+                            $newrequest=new StoreproviderspaymentsRequest([
+                                'done_by'=>$request['user_id'],
+                                'provider_id'=>$request['provider_id'],
+                                'stock_history_id'=>$stock['stock_history'],
+                                'enterprise_id'=>$request['enterprise_id'],
+                                'status'=>'pending',
+                                'note'=>$request['motif'],
+                                'amount'=>$amountToPaye,
+                                'uuid'=>$this->getUuId('C','PP'),
+                                'done_at'=>$request['done_at']
+                            ]);
+                            providerspayments::create($newrequest->all());
+                            $amountSent=$amountSent-$amountToPaye;
+                        }
+                    }
+                } 
+                // $operationdone['stockhistories']=$stockhistories;
+                return  $operationdone;
             }
             else{
                 return response()->json([
@@ -85,11 +156,11 @@ class RequestHistoryController extends Controller
                     "error"=>null,
                     "data"=>$data
                 ]);
-            } catch (\Throwable $th) {
+            } catch (Exception $th) {
                 return response()->json([
                     "status"=>500,
                     "message"=>"error occured",
-                    "error"=>$th,
+                    "error"=>$th->getMessage(),
                     "data"=>null
                 ]);
             }
@@ -116,8 +187,12 @@ class RequestHistoryController extends Controller
                             ->join('funds as F','request_histories.fund_id','F.id')
                             ->join('moneys as M','F.money_id','M.id')
                             ->leftjoin('accounts as A','request_histories.account_id','A.id')
+                            ->leftjoin('stock_history_controllers as SH','request_histories.id','SH.requesthistory_id')
+                            ->leftjoin('provider_controllers as P','SH.provider_id','P.id')
+                            ->leftjoin('services_controllers as S','SH.service_id','S.id')
+                            ->leftjoin('unit_of_measure_controllers as UOM','S.uom_id','UOM.id')
                             ->where('request_histories.id','=',$requestHistory->id)
-                            ->get(['request_histories.*','A.name as account_name','F.description as fund_name','M.abreviation','users.user_name'])->first();
+                            ->get(['UOM.name as uom_name','UOM.symbol as uom_symbol','SH.quantity as quantity_provided','SH.provider_id','SH.total as amount_provided','P.providerName','S.name as servicename','request_histories.*','A.name as account_name','F.description as fund_name','M.abreviation','users.user_name'])->first();
     }
 
     /**
@@ -140,7 +215,48 @@ class RequestHistoryController extends Controller
      */
     public function update(UpdaterequestHistoryRequest $request, requestHistory $requestHistory)
     {
-        //
+        $finded=requestHistory::find($requestHistory->id);
+        if ($finded) {
+            try {
+                $linefind=$this->show($finded);
+                $finded->update($request->only([
+                    'motif',
+                    'account_id',
+                    'done_at',
+                    'provenance',
+                    'beneficiary',
+                    'status'
+                ]));
+                if ($request['provider_id'] || $request['service_id']) {
+                    $stockhistory=StockHistoryController::where('requesthistory_id', $linefind['id'])->first();
+                        if ($stockhistory) {
+                            $stockhistory->update($request->only([
+                                'provider_id','service_id'
+                            ]));
+                        }
+                }
+                return response()->json([
+                    "status"=>200,
+                    "message"=>"success",
+                    "error"=>null,
+                    "data"=>$this->show($finded)
+                ]);
+            } catch (Exception $th) {
+                return response()->json([
+                    "status"=>500,
+                    "message"=>"error",
+                    "error"=>$th->getMessage(),
+                    "data"=>null
+                ]);
+            }
+        }else{
+            return response()->json([
+                "status"=>500,
+                "message"=>"error",
+                "error"=>"no data finded",
+                "data"=>null
+            ]);
+        }
     }
 
     public function getbyfund($fund){

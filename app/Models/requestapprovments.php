@@ -20,6 +20,9 @@ class requestapprovments extends Model
         'receiver_id',
         'enterprise_id',
         'status',
-        'service_id'
+        'service_id',
+        'done_at',
+        'validated_at',
+        'received_at'
     ];
 }

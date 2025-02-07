@@ -9,11 +9,14 @@ class images extends Model
 {
     use HasFactory;
     protected $fillable=[
-        'image',
+        'doc_link',
         'description',
-        'service_id',
-        'user_id',
-        'servant_id',
-        'provider_id',
+        'type_operation',
+        'status',
+        'ref_operation',
+        'done_by',
+        'enterprises',
+        'size',
+        'principal',
     ];
 }

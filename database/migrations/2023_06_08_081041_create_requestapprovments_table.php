@@ -28,13 +28,14 @@ class CreateRequestapprovmentsTable extends Migration
             $table->foreign('service_id')->references('id')->on('services_controllers');
             $table->bigInteger('sender_id')->unsigned();
             $table->foreign('sender_id')->references('id')->on('users');
-            
             $table->bigInteger('receiver_id')->unsigned()->nullable();
             $table->foreign('receiver_id')->references('id')->on('users');
-
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises');
             $table->string('status')->nullable();
+            $table->date('done_at');
+            $table->date('validated_at')->nullable();
+            $table->date('received_at')->nullable();
             $table->timestamps();
         });
     }

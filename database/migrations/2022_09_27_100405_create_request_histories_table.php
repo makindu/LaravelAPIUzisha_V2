@@ -17,6 +17,7 @@ class CreateRequestHistoriesTable extends Migration
             $table->id();
             $table->double('amount');
             $table->string('type');
+            $table->string('status')->default('pending');
             $table->string('motif')->nullable();
             $table->integer('request_id')->nullable();
             $table->integer('invoice_id')->nullable();
@@ -29,6 +30,8 @@ class CreateRequestHistoriesTable extends Migration
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
             $table->date('done_at')->nullable();
             $table->integer('account_id')->nullable();
+            $table->string('beneficiary')->nullable();
+            $table->string('provenance')->nullable();
             $table->timestamps();
         });
     }

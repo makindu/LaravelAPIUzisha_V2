@@ -46,6 +46,7 @@ class CreateStockHistoryControllersTable extends Migration
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
             $table->dateTimeTz('done_at')->nullable();
+            $table->integer('requesthistory_id')->nullable();
             $table->timestamps();
         });
     }

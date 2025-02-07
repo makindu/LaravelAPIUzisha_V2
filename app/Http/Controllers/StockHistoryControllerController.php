@@ -11,7 +11,9 @@ use App\Models\StockHistoryController;
 use App\Http\Requests\StoreStockHistoryControllerRequest;
 use App\Http\Requests\UpdateStockHistoryControllerRequest;
 use App\Models\DepositServices;
+use App\Models\PricesCategories;
 use App\Models\ServicesController;
+use Exception;
 use stdClass;
 
 class StockHistoryControllerController extends Controller
@@ -112,6 +114,13 @@ class StockHistoryControllerController extends Controller
                 if($request['price']){
                     $request['total']=$request['quantity']*$request['price'];
                 }
+                //find product
+                $product=ServicesController::find($request['service_id']);
+                if ($product['coast']<>$request['price']) {
+                    $product->update(['coast'=>$request['price']]);
+                }
+                $request['sold']=$request['quantity'];
+                $request['uuid']=$this->getUuId('C','SH');
             return $this->show(StockHistoryController::create($request->all()));
         }else if($request['type']=='withdraw'){
 
@@ -154,9 +163,17 @@ class StockHistoryControllerController extends Controller
         ->leftjoin('services_controllers as S','stock_history_controllers.service_id','=','S.id')
         ->leftjoin('unit_of_measure_controllers as UOM','S.uom_id','=','UOM.id')
         ->leftjoin('users as U','stock_history_controllers.user_id','=','U.id')
-        ->where('stock_history_controllers.id','=',$stockHistoryController['id'])->get(['stock_history_controllers.*','S.name as service_name','UOM.symbol as uom_symbol','D.name as deposit_name','U.user_name as done_by_name'])[0];
-        
+        ->leftjoin('provider_controllers as P','stock_history_controllers.provider_id','=','P.id')
+        ->where('stock_history_controllers.id','=',$stockHistoryController['id'])->get(['stock_history_controllers.*','P.providerName','S.name as service_name','UOM.symbol as uom_symbol','D.name as deposit_name','U.user_name as done_by_name'])[0];
         $stock['total']=$stock['price']*$stock['quantity'];
+        $pricecategory=PricesCategories::where('service_id',$stock['service_id'])->where('principal',1)->first();
+        if($pricecategory){
+            $stock['sellprice']=$pricecategory['price'];
+            $stock['benefit']=($pricecategory['price']-$stock['price'])*$stock['quantity'];
+        }else{
+            $stock['sellprice']=0;
+            $stock['benefit']=0;
+        }
         return $stock; 
     }
 
@@ -818,7 +835,49 @@ class StockHistoryControllerController extends Controller
      */
     public function update(UpdateStockHistoryControllerRequest $request, StockHistoryController $stockHistoryController)
     {
-        //
+        try {
+            if ($request['id']) {
+                $stockfind=StockHistoryController::find($request['id']);
+                if ($stockfind) {
+                    $stockfind->price=$request['price'];
+                    $stockfind->provider_id=$request['provider_id'];
+                    $stockfind->type_approvement=$request['type_approvement'];
+                    $stockfind->palette=$request['palette'];
+                    $stockfind->motif=$request['motif'];
+                    $stockfind->note=$request['note'];
+                    $stockfind->done_at=$request['done_at'];
+                    $stockfind->total=$request['price']*$stockfind->quantity;
+                    $stockfind->save();
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "error"=>null,
+                        "data"=>$this->show($stockfind)
+                    ]);
+                }else{
+                    return response()->json([
+                        "status"=>400,
+                        "message"=>"error",
+                        "error"=>'not find',
+                        "data"=>null
+                    ]); 
+                }
+            }else{
+                return response()->json([
+                    "status"=>400,
+                    "message"=>"error",
+                    "error"=>'not sent',
+                    "data"=>null
+                ]);
+            }
+        } catch (Exception $th) {
+            return response()->json([
+                "status"=>500,
+                "message"=>"error",
+                "error"=>$th->getMessage(),
+                "data"=>null
+            ]);
+        }
     }
 
     /**

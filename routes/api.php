@@ -197,6 +197,7 @@ Route::get('/request_served_by_id_Request/{id}',[RequestServedController::class,
 
 Route::resource('/request_history',RequestHistoryController::class);
 Route::get('/request_history/byfund/{fund}',[RequestHistoryController::class,'getbyfund']);
+Route::patch('/request_history/{id}',[RequestHistoryController::class,'update']);
 
 Route::resource('/request', RequestsController::class);
 Route::post('/request/validation/{userid}', [RequestsController::class,'requestvalidation']);
@@ -311,6 +312,7 @@ Route::post('/stockhistory/multiplestore',[StockHistoryControllerController::cla
 Route::post('/stockhistory/report/bydeposits',[StockHistoryControllerController::class,'reportbydeposits']);
 Route::post('/stockhistory/report/bydepositsbasedonoperationdate',[StockHistoryControllerController::class,'reportbydepositsbasedondateoperation']);
 Route::post('/stockhistory/report/reportstockgroupedbydates',[StockHistoryControllerController::class,'reportstockgroupedbydates']);
+Route::post('/stockhistory/update/{id}',[StockHistoryControllerController::class,'update']);
 
 //Transfert stock
 Route::apiResource('transfertstock',TransfertstockController::class);
@@ -325,6 +327,7 @@ Route::apiResource('requestapprovments',RequestapprovmentsController::class);
 Route::get('/requestapprovments/enterprise/{id}',[RequestapprovmentsController::class,'index']);
 Route::post('/requestapprovments/validation',[RequestapprovmentsController::class,'validation']);
 Route::post('/requestapprovments/cancel',[RequestapprovmentsController::class,'canceling']);
+Route::post('/requestapprovments/multiplestore',[RequestapprovmentsController::class,'multiplestores']);
 
 Route::apiResource('typesdocuments',DocumentTypesController::class);
 Route::get('/typesdocuments/enterprise/{id}',[DocumentTypesController::class,'index']);
