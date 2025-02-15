@@ -32,6 +32,7 @@ class CreateRequestHistoriesTable extends Migration
             $table->integer('account_id')->nullable();
             $table->string('beneficiary')->nullable();
             $table->string('provenance')->nullable();
+            $table->string('uuid')->nullable();
             $table->timestamps();
         });
     }

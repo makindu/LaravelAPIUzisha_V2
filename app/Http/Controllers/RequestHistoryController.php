@@ -39,6 +39,89 @@ class RequestHistoryController extends Controller
     }
 
     /**
+     * update 
+     */
+    public function operationsupdate(Request $request){
+        $data=[];
+        if ($request['criteria']) {
+            if ($request['user'] && $this->getEse($request['user']['id'])) {
+                if ($request['data'] && count($request['data'])>0) {
+                    try {
+                        $status="";
+                        switch ($request['criteria']) {
+                            case 'validate':
+                                $status="validated";
+                                break;
+                            case 'pending':
+                                $status="pending";
+                                break;
+                            case 'cancel':
+                                $status="cancelled";
+                                break;
+                            
+                            default:
+                                # code...
+                                break;
+                        }
+
+                        foreach ($request['data'] as $expenditure) {
+                            $finded=requestHistory::find($expenditure['id']);
+                            if ($finded){
+                                $finded['status']=$status;
+                                // if ($status=="validated") {
+                                //     $finded['is_validated']=true;
+                                // }else{
+                                //     $finded['is_validated']=false;
+                                // } 
+                                
+                                $finded->save();
+                                array_push($data,$finded);
+                            }
+                         }
+                            return response()->json([
+                            "status"=>200,
+                            "message"=>"success",
+                            "error"=>null,
+                            "data"=>$data
+                        ]);
+                    } catch (Exception $th) {
+                        return response()->json([
+                            "status"=>500,
+                            "message"=>"error",
+                            "error"=>$th->getMessage(),
+                            "data"=>null
+                        ]);
+                    }
+                  
+                }else{
+                    return response()->json([
+                        "status"=>400,
+                        "message"=>"error",
+                        "error"=>"no data sent",
+                        "data"=>null
+                    ]); 
+                }
+            }else{
+                //unauthorized user
+                return response()->json([
+                    "status"=>400,
+                    "message"=>"error",
+                    "error"=>"unauthrized sent",
+                    "data"=>null
+                ]); 
+            }
+        }else{
+            //no criteria sent
+            return response()->json([
+                "status"=>400,
+                "message"=>"error",
+                "error"=>"no criteria sent",
+                "data"=>null
+            ]); 
+        }
+    }
+
+    /**
      * Store a newly created resource in storage.
      *
      * @param  \App\Http\Requests\StorerequestHistoryRequest  $request
@@ -138,6 +221,73 @@ class RequestHistoryController extends Controller
         }
     }
 
+    private function makingnewstockhistoryforprovider($request){
+
+        $provider=ProviderController::find($request['provider_id']);
+        $service=ServicesController::find($request['service_id']);
+        StockHistoryController::create([
+            'provider_id'=>$request['provider_id'],
+            'service_id'=>$request['service_id'],
+            'user_id'=>$request['user_id'],
+            'quantity'=>$request['quantity_provided']?$request['quantity_provided']:1,
+            'price'=>$request['quantity_provided']?($request['amount_provided']/$request['quantity_provided']):$request['amount_provided'],
+            'type'=>'entry',
+            'type_approvement'=>'credit',
+            'enterprise_id'=>$request['enterprise_id'],
+            'motif'=>$request['motif']?$request['motif']:'Location '.$service->name.' auprès du fournisseur '.$provider->providerName,
+            'done_at'=>$request['done_at'],
+            'date_operation'=>$request['done_at'],
+            'uuid'=>$this->getUuId('C','ST'),
+            'depot_id'=>$this->defaultdeposit($request['enterprise_id'])['id'],
+            'quantity_before'=>0,
+            'total'=>$request['quantity_provided']?($request['amount_provided']*$request['quantity_provided']):$request['amount_provided'],
+            'requesthistory_id'=>$request->id
+        ]);
+    }
+
+    private function makingproviderpayments($request){
+         //payments to do
+         if ($request['provider_id']) {
+            $amountSent=$request['amount'];
+            //select all his debts
+            $stockhistories=collect(StockHistoryController::leftjoin('providerspayments as P','stock_history_controllers.id','=','P.stock_history_id')
+            ->select(DB::raw('stock_history_controllers.id as stock_history'),DB::raw('sum(P.amount) as totalpayed'),DB::raw('sum(stock_history_controllers.total) as totaldebts'))
+            ->where('stock_history_controllers.type','entry')
+            ->where('stock_history_controllers.provider_id',$request['provider_id'])
+            ->where('stock_history_controllers.type_approvement','credit')
+            ->groupByRaw('stock_history_controllers.id')
+            ->havingRaw('totaldebts > totalpayed')
+            ->orHavingRaw('totalpayed IS NULL')
+            ->orderBy('stock_history_controllers.done_at','ASC')->get());
+            while ($amountSent > 0) {
+                foreach ($stockhistories as  $stock) {
+                    $amountToPaye=0;
+                    $soldDebt=($stock->totaldebts)-($stock->totalpayed?$stock->totalpayed:0);
+                    if ($soldDebt>=$amountSent) {
+                        $amountToPaye=$amountSent;
+                    }
+                    
+                    if ($soldDebt<$amountSent) {
+                        $amountToPaye=$soldDebt;   
+                    }
+
+                    $newrequest=new StoreproviderspaymentsRequest([
+                        'done_by'=>$request['user_id'],
+                        'provider_id'=>$request['provider_id'],
+                        'stock_history_id'=>$stock['stock_history'],
+                        'enterprise_id'=>$request['enterprise_id'],
+                        'status'=>'pending',
+                        'note'=>$request['motif'],
+                        'amount'=>$amountToPaye,
+                        'uuid'=>$this->getUuId('C','PP'),
+                        'done_at'=>$request['done_at']
+                    ]);
+                    providerspayments::create($newrequest->all());
+                    $amountSent=$amountSent-$amountToPaye;
+                }
+            }
+        }
+    }
     /**
      * save multiples
      */
@@ -217,38 +367,58 @@ class RequestHistoryController extends Controller
     {
         $finded=requestHistory::find($requestHistory->id);
         if ($finded) {
-            try {
-                $linefind=$this->show($finded);
-                $finded->update($request->only([
-                    'motif',
-                    'account_id',
-                    'done_at',
-                    'provenance',
-                    'beneficiary',
-                    'status'
-                ]));
-                if ($request['provider_id'] || $request['service_id']) {
-                    $stockhistory=StockHistoryController::where('requesthistory_id', $linefind['id'])->first();
-                        if ($stockhistory) {
-                            $stockhistory->update($request->only([
-                                'provider_id','service_id'
-                            ]));
-                        }
-                }
+            if ($finded->status=='cancelled' && $finded->status=='validated') {
                 return response()->json([
-                    "status"=>200,
-                    "message"=>"success",
-                    "error"=>null,
+                    "status"=>400,
+                    "message"=>"error",
+                    "error"=>'closed',
                     "data"=>$this->show($finded)
                 ]);
-            } catch (Exception $th) {
-                return response()->json([
-                    "status"=>500,
-                    "message"=>"error",
-                    "error"=>$th->getMessage(),
-                    "data"=>null
-                ]);
+            }else{
+                try {
+                    $linefind=$this->show($finded);
+                    $finded->update($request->only([
+                        'motif',
+                        'account_id',
+                        'done_at',
+                        'provenance',
+                        'beneficiary',
+                        'status'
+                    ]));
+                    if ($request['provider_id'] || $request['service_id']) {
+                        $stockhistory=StockHistoryController::where('requesthistory_id', $linefind['id'])->first();
+                            if ($stockhistory) {
+                                $stockhistory->update($request->only([
+                                    'provider_id','service_id'
+                                ]));
+                            }else{
+                                $linefind['service_id']=$request['service_id'];
+                                $linefind['provider_id']=$request['provider_id'];
+                                $linefind['amount_provided']=$linefind['amount'];
+                                //creating debt or making payment for the provider
+                                if ($finded->type=='entry') {
+                                   $this->makingnewstockhistoryforprovider($linefind);
+                                }else{
+                                    $this->makingproviderpayments($linefind);
+                                }
+                            }
+                    }
+                    return response()->json([
+                        "status"=>200,
+                        "message"=>"success",
+                        "error"=>null,
+                        "data"=>$this->show($finded)
+                    ]);
+                } catch (Exception $th) {
+                    return response()->json([
+                        "status"=>500,
+                        "message"=>"error",
+                        "error"=>$th->getMessage(),
+                        "data"=>null
+                    ]);
+                }
             }
+           
         }else{
             return response()->json([
                 "status"=>500,

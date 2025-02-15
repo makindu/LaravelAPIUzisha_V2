@@ -28,6 +28,7 @@ use App\Http\Controllers\PosusersController;
 use App\Http\Controllers\RequestsController;
 use App\Http\Controllers\SalariesController;
 use App\Http\Controllers\ServantsController;
+use App\Http\Controllers\LibrariesController;
 use App\Http\Controllers\MaterialsController;
 use App\Http\Controllers\PositionsController;
 use App\Http\Controllers\SafeguardController;
@@ -63,6 +64,7 @@ use App\Http\Controllers\PricesCategoriesController;
 use App\Http\Controllers\UsersPointOfSaleController;
 use App\Http\Controllers\WekafirstentriesController;
 use App\Http\Controllers\DepositControllerController;
+use App\Http\Controllers\ProviderspaymentsController;
 use App\Http\Controllers\RequestReferencesController;
 use App\Http\Controllers\UsersTicketOfficeController;
 use App\Http\Controllers\CustomerControllerController;
@@ -86,7 +88,6 @@ use App\Http\Controllers\WekaAccountsTransactionsController;
 use App\Http\Controllers\NbrdecisionteamValidationController;
 use App\Http\Controllers\CategoriesCustomerControllerController;
 use App\Http\Controllers\CategoriesServicesControllerController;
-use App\Http\Controllers\ProviderspaymentsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -171,6 +172,7 @@ Route::delete('/funds/delete/{id}',[FundsController::class,'destroy2']);
 Route::patch('funds/update/{funds}',[FundsController::class,'update2']);
 Route::post('/funds/requesthistories',[FundsController::class,'requesthistoriesbyagent']);
 Route::post('/funds/savemultiples',[RequestHistoryController::class,'savemultiple']);
+Route::post('/funds/operations/update',[RequestHistoryController::class,'operationsupdate']);
 
 Route::resource('/money_conversion', MoneyConversionController::class);
 Route::get('/money_conversion/enterprise/{enterpriseId}', [MoneyConversionController::class,'index']);
@@ -771,6 +773,11 @@ Route::post('/weka/expenditures/update',[ExpendituresController::class,'expendit
  */
 Route::post('/testcerubu',[UzishafuelconsumptionController::class,'store']);
 Route::post('/testcerubu/report',[UzishafuelconsumptionController::class,'index']);
+
+/**
+ * Librairies routes
+ */
+Route::post('/libraries',[LibrariesController::class,'store']);
 
 
 

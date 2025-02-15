@@ -25,5 +25,6 @@ class requestHistory extends Model
         'status',
         'beneficiary',
         'provenance',
+        'uuid'
     ];
 }
