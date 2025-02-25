@@ -15,7 +15,7 @@ class images extends Model
         'status',
         'ref_operation',
         'done_by',
-        'enterprises',
+        'enterprise_id',
         'size',
         'principal',
     ];

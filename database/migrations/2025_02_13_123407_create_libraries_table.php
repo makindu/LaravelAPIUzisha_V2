@@ -23,6 +23,7 @@ class CreateLibrariesTable extends Migration
             $table->string('type');
             $table->string('path');
             $table->string('extension');
+            $table->string('visibility')->default('public');
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
             $table->bigInteger('user_id')->unsigned();

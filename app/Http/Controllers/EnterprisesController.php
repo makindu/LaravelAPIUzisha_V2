@@ -23,6 +23,7 @@ use App\Http\Requests\UpdateEnterprisesRequest;
 use App\Models\CustomerController;
 use App\Models\Debts;
 use App\Models\DepositServices;
+use App\Models\enterprisesettings;
 use App\Models\Expenditures;
 use App\Models\Fences;
 use App\Models\Invoices;
@@ -79,7 +80,7 @@ class EnterprisesController extends Controller
                             $eseupdated=$ese->update(['status'=>$enterprise['status_sent']]);
                             array_push($eses,$ese);
                             if ($eseupdated && $eseupdated['status']=="disabled") {
-                                $users=usersenterprise::where('enterprise_id')->get();
+                                $users=usersenterprise::where('enterprise_id', $ese['id'])->get();
                                 foreach ($users as  $user) {
                                     $userfind=user::find($user['user_id']);
                                     if ($userfind) {
@@ -137,6 +138,15 @@ class EnterprisesController extends Controller
             //affect owner to it enterprise
             usersenterprise::create([
                 'user_id'=>$new->user_id,
+                'enterprise_id'=>$new->id
+            ]);
+
+            //create default settings
+            $settings=enterprisesettings::create([
+                'storage'=>200000,
+                'nbr_users'=>5,
+                'nbr_deposits'=>1,
+                'language'=>'fr',
                 'enterprise_id'=>$new->id
             ]);
             //create role and give it to the owner

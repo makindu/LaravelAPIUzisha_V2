@@ -8,6 +8,8 @@ use App\Models\requestHistory;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StorerequestHistoryRequest;
 use App\Http\Requests\UpdaterequestHistoryRequest;
+use App\Models\images;
+use App\Models\libraries;
 use App\Models\ProviderController;
 use App\Models\providerspayments;
 use App\Models\ServicesController;
@@ -156,6 +158,24 @@ class RequestHistoryController extends Controller
                     'requesthistory_id'=>$newvalue->id
                 ]);
             }
+
+            if ($request['attachments'] && count($request['attachments'])>0) {
+                foreach ($request['attachments'] as $key => $attachment) {
+                    $libraryfind=libraries::find($attachment['id']);
+                    if ($libraryfind) {
+                        $newimage=images::create([
+                            'doc_link'=>$libraryfind['id'],
+                            'description'=>$newvalue['motif'],
+                            'type_operation'=>'request_history',
+                            'ref_operation'=>$newvalue['id'],
+                            'done_by'=>$request['user_id'],
+                            'enterprise_id'=>$request['enterprise_id'],
+                            'size'=>$libraryfind['size'],
+                            'principal'=>$key==0?true:false
+                        ]);
+                    }
+                }
+            }
             return  $this->show($newvalue);
         }else{
             //checking sold
@@ -208,6 +228,23 @@ class RequestHistoryController extends Controller
                         }
                     }
                 } 
+                if ($request['attachments'] && count($request['attachments'])>0) {
+                    foreach ($request['attachments'] as $key => $attachment) {
+                        $libraryfind=libraries::find($attachment['id']);
+                        if ($libraryfind) {
+                            $newimage=images::create([
+                                'doc_link'=>$libraryfind['id'],
+                                'description'=>$newvalue['motif'],
+                                'type_operation'=>'request_history',
+                                'ref_operation'=>$newvalue['id'],
+                                'done_by'=>$request['user_id'],
+                                'enterprise_id'=>$request['enterprise_id'],
+                                'size'=>$libraryfind['size'],
+                                'principal'=>$key==0?true:false
+                            ]);
+                        }
+                    }
+                }
                 // $operationdone['stockhistories']=$stockhistories;
                 return  $operationdone;
             }
@@ -333,7 +370,8 @@ class RequestHistoryController extends Controller
      */
     public function show(requestHistory $requestHistory)
     {
-        return requestHistory::join('users','request_histories.user_id','=','users.id')
+        $attachments=[];
+        $data=requestHistory::join('users','request_histories.user_id','=','users.id')
                             ->join('funds as F','request_histories.fund_id','F.id')
                             ->join('moneys as M','F.money_id','M.id')
                             ->leftjoin('accounts as A','request_histories.account_id','A.id')
@@ -342,7 +380,12 @@ class RequestHistoryController extends Controller
                             ->leftjoin('services_controllers as S','SH.service_id','S.id')
                             ->leftjoin('unit_of_measure_controllers as UOM','S.uom_id','UOM.id')
                             ->where('request_histories.id','=',$requestHistory->id)
-                            ->get(['UOM.name as uom_name','UOM.symbol as uom_symbol','SH.quantity as quantity_provided','SH.provider_id','SH.total as amount_provided','P.providerName','S.name as servicename','request_histories.*','A.name as account_name','F.description as fund_name','M.abreviation','users.user_name'])->first();
+                            ->get(['UOM.name as uom_name','UOM.symbol as uom_symbol','SH.quantity as quantity_provided','SH.provider_id','SH.total as amount_provided','P.providerName','S.name as servicename','request_histories.*','A.name as account_name','F.money_id','F.description as fund_name','M.abreviation','users.user_name'])->first();
+        if ($data) {
+            $attachments=images::join('libraries as L','images.doc_link','=','L.id')->where('images.type_operation','request_history')->where('images.ref_operation',$requestHistory->id)->get('L.*');
+        }
+        $data['attachments']=$attachments;
+        return $data;
     }
 
     /**
@@ -403,6 +446,25 @@ class RequestHistoryController extends Controller
                                 }
                             }
                     }
+
+                    if ($request['attachments'] && count($request['attachments'])>0) {
+                        foreach ($request['attachments'] as $key => $attachment) {
+                            $libraryfind=libraries::find($attachment['id']);
+                            if ($libraryfind) {
+                                $newimage=images::create([
+                                    'doc_link'=>$libraryfind['id'],
+                                    'description'=>$linefind['motif'],
+                                    'type_operation'=>'request_history',
+                                    'ref_operation'=>$linefind['id'],
+                                    'done_by'=>$linefind['user_id'],
+                                    'enterprise_id'=>$linefind['enterprise_id'],
+                                    'size'=>$libraryfind['size'],
+                                    'principal'=>$key==0?true:false
+                                ]);
+                            }
+                        }
+                    }
+
                     return response()->json([
                         "status"=>200,
                         "message"=>"success",

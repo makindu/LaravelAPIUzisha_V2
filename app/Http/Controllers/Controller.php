@@ -6,10 +6,13 @@ use App\Models\DepositController;
 use App\Models\User;
 use App\Models\moneys;
 use App\Models\Enterprises;
+use App\Models\enterprisesettings;
 use App\Models\Invoices;
+use App\Models\libraries;
 use Illuminate\Support\Str;
 use App\Models\PricesCategories;
 use App\Models\ServicesController;
+use App\Models\usersenterprise;
 use App\Models\wekamemberaccounts;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +20,8 @@ use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+
 /**
  * @OA\Info(
  *      version="1.0.0",
@@ -34,6 +39,70 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 class Controller extends BaseController
 {
     use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
+     /**
+     * general method grouped by moneys
+     */
+
+    public function generalmethodgroupedbymoneys(Request $request){
+        $moneys=collect(moneys::where('enterprise_id',$request['enterprise_id'])->get());
+        if ($request['filter']=='entries_requesthistory') {
+
+            $moneys->transform(function ($money) use($request){ 
+                $money['total']=0;
+                $money['total']=$money['total']+($request['data']->where('money_id','=', $money['id'])->sum($request['columnsumb'])); 
+                return $money;
+            });
+            return $moneys;
+        }  
+        
+        if ($request['filter']=='withdraw_requesthistory') {
+
+            $moneys->transform(function ($money) use($request){ 
+                $money['total']=0;
+                $money['total']= $money['total']+($request['data']->where('money_id','=', $money['id'])->sum($request['columnsumb']));
+                return $money;
+            });
+            return $moneys;
+        } 
+        
+        if ($request['filter']=='funds') {
+        
+            $moneys->transform(function ($money) use($request){ 
+                $money['total']=0;
+                $money['total']= $money['total']+($request['data']->where('money_id','=', $money['id'])->sum($request['columnsumb']));
+                return $money;
+            });
+            return $moneys;
+        }
+
+        if ($request['filter']=="solds_net_from_request_histories") {
+            $moneys->transform(function ($money) use($request){ 
+                $money['totalgeneral']=0;
+                // $money['totalgeneral']=$money['subtotalsold']+($request['data']->where('money_id','=', $money['id'])->sum($request['columnsumb']));
+                return $money;
+            });
+            return $moneys;
+        }
+           
+    }
+
+    public function userenterpriseaffectation($user_id,$enterpriseId){
+        return usersenterprise::where('enterprise_id',$enterpriseId)->where('user_id',$user_id)->first();
+    }
+    
+    public function enterpriseSettings($enterpriseid){
+        return enterprisesettings::where('enterprise_id',$enterpriseid)->first();
+    }
+
+    public function reamingstorage($enterpriseId){
+        $storage=$this->enterpriseSettings($enterpriseId);
+        $images = libraries::where('enterprise_id',$enterpriseId)->whereIn('extension',['png','jpg','jpeg'])->get();
+        $docs = Libraries::where('enterprise_id',$enterpriseId)->whereNotIn('extension',['png','jpg','jpeg'])->get();
+        $sizeimages=$images->sum('size');
+        $sizedocs=$docs->sum('size');
+        $remining=($storage->storage)-($sizedocs+$sizeimages);
+        return $remining;
+    }
 
     public function updaterequeststatus(int $requestid,string $status){
 

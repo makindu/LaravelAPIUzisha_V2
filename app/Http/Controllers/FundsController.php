@@ -8,6 +8,9 @@ use App\Models\requestHistory;
 use App\Http\Requests\StorefundsRequest;
 use App\Http\Requests\UpdatefundsRequest;
 use App\Models\decision_team;
+use App\Models\moneys;
+use App\Models\providerspayments;
+use App\Models\StockHistoryController;
 use Exception;
 use Illuminate\Support\Facades\DB;
 
@@ -210,6 +213,7 @@ class FundsController extends Controller
         return response()->json($data::find($id), 200);
     }
 
+   
     /**
      * request histories by agent
      */
@@ -225,6 +229,7 @@ class FundsController extends Controller
             if ($actualuser) {
                 $ese=$this->getEse($actualuser->id);
                 if ($ese) {
+                    $moneys=collect(moneys::where('enterprise_id',$ese->id)->get());
                     if ($actualuser['user_type']!=='super_admin') {
                         $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
                         ->leftjoin('moneys as M', 'funds.money_id','=','M.id')
@@ -235,7 +240,6 @@ class FundsController extends Controller
                         }else{
                             $listfunds=$list->pluck('id')->toArray();
                         }
-                        
                     }
                     else{
                         $list= funds::leftjoin('users as U', 'funds.user_id','=','U.id')
@@ -277,6 +281,21 @@ class FundsController extends Controller
                                return  $requestHistoryCtrl->show($item);
                             });
 
+                            //beneficiary marges calculation
+                            $providersdebts=StockHistoryController::select(DB::raw('sum(total) as total_debts'))
+                                ->where('type','=','entry')
+                                ->where('enterprise_id','=',$ese->id)
+                                ->where('type_approvement','=','credit')
+                                ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                                ->get()->first();
+
+                            $advances=providerspayments::select(DB::raw('sum(amount) as total_advances'))
+                            ->where('enterprise_id','=',$ese->id)
+                            ->whereBetween('done_at',[$request['from'].' 00:00:00',$request['to'].' 23:59:59'])
+                            ->get()->first();
+
+                            $soldDebts=($providersdebts['total_debts']?$providersdebts['total_debts']:0)-($advances['total_advances']?$advances['total_advances']:0);
+
                             $summaries=response()->json([
                                 "totaltovalidate"=>$histories->where('status','pending')->count(),
                                 "totalvalidated"=>$histories->where('status','validated')->count(),
@@ -286,12 +305,52 @@ class FundsController extends Controller
                                 "totalwithdraw"=>$histories->where('type','withdraw')->count()
                             ]);
 
+                            $subtotalsentries=$this->generalmethodgroupedbymoneys(new Request([
+                                    "filter"=>"entries_requesthistory",
+                                    "columnsumb"=>"amount",
+                                    "data"=>$histories->where('type','entry'),
+                                    "enterprise_id"=>$ese->id
+                            ]));
+
+                            $subtotalswithdraw=$this->generalmethodgroupedbymoneys(new Request([
+                                    "filter"=>"withdraw_requesthistory",
+                                    "columnsumb"=>"amount",
+                                    "data"=>$histories->where('type','withdraw'),
+                                    "enterprise_id"=>$ese->id
+                            ]));
+
+                            $subtotalsbank=$this->generalmethodgroupedbymoneys(new Request([
+                                    "filter"=>"funds",
+                                    "columnsumb"=>"sold",
+                                    "data"=>$list,
+                                    "enterprise_id"=>$ese->id
+                            ]));
+
+                           
+
+                            $totalgenerals=$moneys->transform(function ($money) use($soldDebts,$subtotalsentries,$subtotalswithdraw,$subtotalsbank){
+                                $money['totalgeneral']=$money['totalgeneral']+($subtotalsentries->where('id',$money['id'])->sum('total'));
+                                $money['totalgeneral']=$money['totalgeneral']+($subtotalsbank->where('id',$money['id'])->sum('total'));
+                                $money['totalgeneral']=$money['totalgeneral']-($subtotalswithdraw->where('id',$money['id'])->sum('total'));
+                               
+
+                                return $money;
+                            });
+
                             return response()->json([
                                 "status"=>200,
                                 "message"=>"success",
                                 "error"=>null,
+                                "subtotaldebts"=>$providersdebts['total_debts']?$providersdebts['total_debts']:0,
+                                "subtotalpayments"=>$advances['total_advances']?$advances['total_advances']:0,  
+                                "subtotalprovidersdebts"=>$providersdebts->sum('total'),
+                                "subtotalproviderspayments"=>$advances->sum('amount'),
+                                "subtotalsentries"=>$subtotalsentries,
+                                "subtotalswithdraw"=>$subtotalswithdraw,
+                                "subtotalsbank"=>$subtotalsbank,
+                                "subtotalgenerals"=>$totalgenerals,
                                 "data"=>$histories,
-                                "summary"=> $summaries->original
+                                "summary"=>$summaries->original
                             ]);
                         } catch (Exception $th) {
                             return response()->json([

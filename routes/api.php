@@ -57,6 +57,7 @@ use App\Http\Controllers\SelfReferencesController;
 use App\Http\Controllers\TransfertstockController;
 use App\Http\Controllers\AdvancesalariesController;
 use App\Http\Controllers\MoneyConversionController;
+use App\Http\Controllers\SharedlibrariesController;
 use App\Http\Controllers\SubDepartementsController;
 use App\Http\Controllers\AffectationUsersController;
 use App\Http\Controllers\PressingServicesController;
@@ -778,6 +779,10 @@ Route::post('/testcerubu/report',[UzishafuelconsumptionController::class,'index'
  * Librairies routes
  */
 Route::post('/libraries',[LibrariesController::class,'store']);
+Route::post('/libraries/enterprise',[LibrariesController::class,'index']);
+Route::get('/libraries/storage/enterprise/{enterprise_id}',[LibrariesController::class,'getstorage']);
+Route::post('/libraries/share',[SharedlibrariesController::class,'store']);
+Route::post('/libraries/delete',[LibrariesController::class,'deletemultiple']);
 
 
 

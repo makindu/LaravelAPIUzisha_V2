@@ -18,6 +18,7 @@ class libraries extends Model
         'path',
         'enterprise_id',
         'user_id',
-        'extension'
+        'extension',
+        'visibility'
     ];
 }
