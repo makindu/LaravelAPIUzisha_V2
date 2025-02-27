@@ -322,17 +322,19 @@ class FundsController extends Controller
                             $subtotalsbank=$this->generalmethodgroupedbymoneys(new Request([
                                     "filter"=>"funds",
                                     "columnsumb"=>"sold",
-                                    "data"=>$list,
+                                    "data"=>$this->listfunds($ese->id,'bank'),
                                     "enterprise_id"=>$ese->id
                             ]));
-
-                           
 
                             $totalgenerals=$moneys->transform(function ($money) use($soldDebts,$subtotalsentries,$subtotalswithdraw,$subtotalsbank){
                                 $money['totalgeneral']=$money['totalgeneral']+($subtotalsentries->where('id',$money['id'])->sum('total'));
                                 $money['totalgeneral']=$money['totalgeneral']+($subtotalsbank->where('id',$money['id'])->sum('total'));
                                 $money['totalgeneral']=$money['totalgeneral']-($subtotalswithdraw->where('id',$money['id'])->sum('total'));
-                               
+                               if ($money['principal']==1) {
+                                $money['totalgeneral_after_paying']=$money['totalgeneral']-$soldDebts;
+                               }else{
+                                $money['totalgeneral_after_paying']=$money['totalgeneral'];
+                               }
 
                                 return $money;
                             });
@@ -343,12 +345,13 @@ class FundsController extends Controller
                                 "error"=>null,
                                 "subtotaldebts"=>$providersdebts['total_debts']?$providersdebts['total_debts']:0,
                                 "subtotalpayments"=>$advances['total_advances']?$advances['total_advances']:0,  
-                                "subtotalprovidersdebts"=>$providersdebts->sum('total'),
-                                "subtotalproviderspayments"=>$advances->sum('amount'),
+                                "subtotalprovidersdebts"=>$providersdebts['total_debts']?$providersdebts['total_debts']:0,
+                                "subtotalproviderspayments"=>$advances['total_advances']?$advances['total_advances']:0,
                                 "subtotalsentries"=>$subtotalsentries,
                                 "subtotalswithdraw"=>$subtotalswithdraw,
                                 "subtotalsbank"=>$subtotalsbank,
                                 "subtotalgenerals"=>$totalgenerals,
+                                "soldDebtsproviders"=>$soldDebts,
                                 "data"=>$histories,
                                 "summary"=>$summaries->original
                             ]);

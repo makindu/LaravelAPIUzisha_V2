@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\moneys;
 use App\Models\Enterprises;
 use App\Models\enterprisesettings;
+use App\Models\funds;
 use App\Models\Invoices;
 use App\Models\libraries;
 use Illuminate\Support\Str;
@@ -86,22 +87,46 @@ class Controller extends BaseController
            
     }
 
+    public function listfunds($enterpriseId, string $criteria){
+        if ($criteria==="all") {
+            return funds::where('enterprise_id',$enterpriseId)->get();
+        }
+        
+        if ($criteria==="bank") {
+            return funds::where('enterprise_id',$enterpriseId)->where('type','bank')->get();
+        }
+
+    }
+    
     public function userenterpriseaffectation($user_id,$enterpriseId){
         return usersenterprise::where('enterprise_id',$enterpriseId)->where('user_id',$user_id)->first();
     }
     
     public function enterpriseSettings($enterpriseid){
-        return enterprisesettings::where('enterprise_id',$enterpriseid)->first();
+        $storage=enterprisesettings::where('enterprise_id',$enterpriseid)->first();
+        $images = Libraries::where('enterprise_id',$enterpriseid)->whereIn('extension',['png','jpg','jpeg'])->get();
+        $docs = Libraries::where('enterprise_id',$enterpriseid)->whereNotIn('extension',['png','jpg','jpeg'])->get();
+        $sizeimages=$images->sum('size');
+        $sizedocs=$docs->sum('size');
+
+        $totalstorage=($storage->storage)/1024000;
+        $totalmedias=($sizeimages)/1024000;
+        $totaldocs=($sizedocs)/1024000;
+        $totalused=($totalmedias/1024000)+($totaldocs/1024000);
+        $totalremain=$totalstorage-$totalused;
+
+        return json_encode([
+            "storage_allocated"=>$totalstorage,
+            "medias_used"=>$totalmedias,
+            "docs_used"=>$totaldocs,
+            "total_used"=>$totalused,
+            "remaining"=>$totalremain,
+        ]);
     }
 
     public function reamingstorage($enterpriseId){
-        $storage=$this->enterpriseSettings($enterpriseId);
-        $images = libraries::where('enterprise_id',$enterpriseId)->whereIn('extension',['png','jpg','jpeg'])->get();
-        $docs = Libraries::where('enterprise_id',$enterpriseId)->whereNotIn('extension',['png','jpg','jpeg'])->get();
-        $sizeimages=$images->sum('size');
-        $sizedocs=$docs->sum('size');
-        $remining=($storage->storage)-($sizedocs+$sizeimages);
-        return $remining;
+        $storage=json_decode($this->enterpriseSettings($enterpriseId));
+        return $storage->remaining;
     }
 
     public function updaterequeststatus(int $requestid,string $status){
@@ -133,7 +158,13 @@ class Controller extends BaseController
     }
 
     public function getEse($user_id){
-        return Enterprises::leftjoin('usersenterprises as UE', 'enterprises.id','=','UE.enterprise_id')->where('UE.user_id','=',$user_id)->get(['enterprises.*'])[0];
+        $enterprise=Enterprises::leftjoin('usersenterprises as UE', 'enterprises.id','=','UE.enterprise_id')->where('UE.user_id','=',$user_id)->get(['enterprises.*'])->first();
+        if ($enterprise) {
+            $enterprise['settings']=enterprisesettings::where('enterprise_id',$enterprise->id)->get()->first();
+            return $enterprise;
+        }else{
+            return response()->json((object)[]);
+        }  
     }
 
     public function isactivatedEse($EseId){

@@ -115,20 +115,16 @@ class LibrariesController extends Controller
 
     public function getstorage($enterpriseId){
         try {
-            $storage=$this->enterpriseSettings($enterpriseId);
-            $images = Libraries::where('enterprise_id',$enterpriseId)->whereIn('extension',['png','jpg','jpeg'])->get();
-            $docs = Libraries::where('enterprise_id',$enterpriseId)->whereNotIn('extension',['png','jpg','jpeg'])->get();
-            $sizeimages=$images->sum('size');
-            $sizedocs=$docs->sum('size');
-
+            $storage=json_decode($this->enterpriseSettings($enterpriseId));
+           
             return response()->json([
                 "status"=>200,
                 "message"=>"success",
-                "storage"=>($storage->storage)/1024000,
-                "mediasize"=>($sizeimages)/1024000,
-                "documentsize"=>($sizedocs)/1024000,
-                "totalused"=>($sizedocs+$sizeimages)/1024000,
-                "remainingStorage"=>(($storage->storage)-($sizedocs+$sizeimages))/1024000,
+                "storage"=>$storage->storage_allocated,
+                "mediasize"=>$storage->medias_used,
+                "documentsize"=>$storage->docs_used,
+                "totalused"=>$storage->total_used,
+                "remainingStorage"=>$storage->remaining,
                 "error"=>null
             ]);
         } catch (Exception $th) {
@@ -183,7 +179,7 @@ class LibrariesController extends Controller
     {
         try {
             $request->validate([
-                'attachments.*'=>'required|mimes:png,jpg,pdf,docx,xlsx,xls,csv|max:3000',
+                'attachments.*'=>'required|mimes:png,jpg,jpeg,pdf,doc,docx,xlsx,xls,csv',
                 'descriptions.*'=>'nullable|string',
                 'user_id'=>'required|integer',
                 'enterprise_id'=>'required|integer'
@@ -193,6 +189,21 @@ class LibrariesController extends Controller
             $uploadedFiles=$request->file('attachments');
             $descriptions=$request->input('descriptions',[]);
             $filesPaths=[];
+            $totalsize=0;
+            $remainingstorage=$this->reamingstorage($enterpriseId);
+            foreach ($uploadedFiles as $index=> $file) {
+                $totalsize +=$file->getSize();
+            }
+
+            if (($totalsize/1024000)>$remainingstorage) {
+                return response()->json([
+                    "status"=>400,
+                    "message"=>"error",
+                    "error"=>"no longer enough space",
+                    "data"=>null
+                ]);
+            }
+
             foreach ($uploadedFiles as $index=> $file) {
                $path=$file->store('uploads','public');
                 $description=isset($descriptions[$index])?$descriptions[$index]:'';

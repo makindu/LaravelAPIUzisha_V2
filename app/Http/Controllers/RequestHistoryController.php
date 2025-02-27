@@ -154,7 +154,7 @@ class RequestHistoryController extends Controller
                     'uuid'=>$this->getUuId('C','ST'),
                     'depot_id'=>$this->defaultdeposit($request['enterprise_id'])['id'],
                     'quantity_before'=>0,
-                    'total'=>$request['quantity_provided']?($request['amount_provided']*$request['quantity_provided']):$request['amount_provided'],
+                    'total'=>$request['amount_provided']?$request['amount_provided']:$request['amount'],
                     'requesthistory_id'=>$newvalue->id
                 ]);
             }

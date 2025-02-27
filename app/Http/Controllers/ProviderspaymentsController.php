@@ -6,7 +6,9 @@ use App\Models\providerspayments;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreproviderspaymentsRequest;
 use App\Http\Requests\UpdateproviderspaymentsRequest;
+use App\Models\funds;
 use App\Models\ProviderController;
+use App\Models\requestHistory;
 use App\Models\StockHistoryController;
 use App\Models\User;
 use Exception;
@@ -59,6 +61,29 @@ class ProviderspaymentsController extends Controller
                     }
                     $request['uuid']=$this->getUuId('C','PP');
                     $newpayment=providerspayments::create($request->all());
+                    $provider=ProviderController::find($newpayment['provider_id']);
+                    $ese=$this->getEse($newpayment['done_by']);
+                    $actualfund=funds::where('enterprise_id',$ese->id)->where('principal',true)->first();
+                    $sold=$actualfund['sold']-$request['amount'];
+                    //passer l'ecriture de sortie dans la caisse principale
+                    if ($newpayment) {
+                        DB::update('update funds set sold =sold + ? where id = ? ',[$request->amount,$actualfund->id]);
+                        requestHistory::create([
+                            'user_id'=>$newpayment['done_by'],
+                            'fund_id'=>$actualfund['id'],
+                            'amount'=>$request['amount'],
+                            'motif'=>"paiement dette fournisseur ".$provider['providerName'],
+                            'type'=>"withdraw",
+                            'enterprise_id'=>$ese->id,
+                            'sold'=>$sold,
+                            'done_at'=>date('Y-m-d'),
+                            'status'=>"validated",
+                            'beneficiary'=>$provider['providerName'],
+                            'provenance'=>$ese->name,
+                            'uuid'=>$this->getUuId('RH','C')
+                        ]);
+                    }
+
                     return response()->json([
                         'message'=>'success',
                         'status'=>200,

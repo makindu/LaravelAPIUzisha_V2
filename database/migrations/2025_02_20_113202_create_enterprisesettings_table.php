@@ -28,7 +28,7 @@ class CreateEnterprisesettingsTable extends Migration
             $table->string('limit_customers')->default('limited');
             $table->double('nbr_customers')->default(100);
             $table->string('limit_funds')->default('limited');
-            $table->double('nbr_funds')->default(100);
+            $table->double('nbr_funds')->default(1);
             $table->string('limit_expenditures')->default('limited');
             $table->double('nbr_expenditures')->default(100);
             $table->string('limit_accounts')->default('limited');
