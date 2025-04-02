@@ -30,6 +30,65 @@ class DebtsController extends Controller
     }
 
     /**
+     * searching of debts by done paginated
+     */
+    public function searchdebtsbydoneby(Request $request){
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser['user_type']=='super_admin') {
+            
+            $list =Debts::Join('invoices', 'debts.invoice_id', '=', 'invoices.id')
+                ->join('customer_controllers','invoices.customer_id','=','customer_controllers.id')
+                ->where('invoices.enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('debts.amount', 'LIKE', "%$searchTerm%")
+                    ->orWhere('debts.sold', 'LIKE', "%$searchTerm%")
+                    ->orWhere('debts.uuid', 'LIKE', "%$searchTerm%")
+                    ->orWhere('debts.done_at', 'LIKE', "%$searchTerm%")
+                    ->orWhere('debts.id', 'LIKE', "%$searchTerm%")
+                    ->orWhere('customer_controllers.customerName', 'LIKE', "%$searchTerm%")
+                    ->orWhere('customer_controllers.phone', 'LIKE', "%$searchTerm%")
+                    ->orWhere('customer_controllers.mail', 'LIKE', "%$searchTerm%")
+                    ->orWhere('customer_controllers.uuid', 'LIKE', "%$searchTerm%");
+                })
+                ->select('debts.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+
+        } else {
+            
+            $list =Debts::Join('invoices', 'debts.invoice_id', '=', 'invoices.id')
+            ->join('customer_controllers','invoices.customer_id','=','customer_controllers.id')
+            ->where('debts.created_by_id', '=', $actualuser['id'])
+            ->where(function($query) use ($searchTerm) {
+                $query->where('debts.amount', 'LIKE', "%$searchTerm%")
+                ->orWhere('debts.sold', 'LIKE', "%$searchTerm%")
+                ->orWhere('debts.uuid', 'LIKE', "%$searchTerm%")
+                ->orWhere('debts.done_at', 'LIKE', "%$searchTerm%")
+                ->orWhere('debts.id', 'LIKE', "%$searchTerm%")
+                ->orWhere('customer_controllers.customerName', 'LIKE', "%$searchTerm%")
+                ->orWhere('customer_controllers.phone', 'LIKE', "%$searchTerm%")
+                ->orWhere('customer_controllers.mail', 'LIKE', "%$searchTerm%")
+                ->orWhere('customer_controllers.uuid', 'LIKE', "%$searchTerm%");
+            })
+            ->select('debts.*')
+            ->paginate(10)
+            ->appends($request->query());
+
+        $list->getCollection()->transform(function ($item){
+            return $this->show($item);
+        });
+        return $list;
+        }
+    }
+
+    /**
      * looking debt by invoice uui or id
      */
     public function searchingbyidoruuid(Request $request){

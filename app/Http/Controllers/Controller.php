@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\moneys;
 use App\Models\Enterprises;
 use App\Models\enterprisesettings;
+use App\Models\enterprisesinvoices;
 use App\Models\funds;
 use App\Models\Invoices;
 use App\Models\libraries;
@@ -43,7 +44,28 @@ class Controller extends BaseController
      /**
      * general method grouped by moneys
      */
-
+    function createEnterpriseInvoice($enterpriseId, $planId, $amount,$description="", $currency = 'USD')
+    {
+        $invoice =enterprisesinvoices::create([
+            'enterprise_id' => $enterpriseId,
+            'plan_id' => $planId,
+            'amount' => $amount,
+            'currency' => $currency,
+            'invoice_date' => Carbon::now(),
+            'due_date' => Carbon::now()->addDays(7),
+            'status' => 'pending',
+            'payment_method' => null,
+            'details' => [
+                'tax' => '20%',
+                'discount' => '0%'
+            ],
+            'description'=>$description,
+            'uuid'=>$this->getUuId('IE','C')
+        ]);
+    
+        return $invoice;
+    }
+    
     public function generalmethodgroupedbymoneys(Request $request){
         $moneys=collect(moneys::where('enterprise_id',$request['enterprise_id'])->get());
         if ($request['filter']=='entries_requesthistory') {

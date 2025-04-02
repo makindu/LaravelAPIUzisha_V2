@@ -16,7 +16,7 @@ class CreateEnterprisesettingsTable extends Migration
         Schema::create('enterprisesettings', function (Blueprint $table) {
             $table->id();
             $table->string('limit_storage')->default('limited');
-            $table->double('storage')->default(200000);
+            $table->double('storage')->default(100000);
             $table->string('limit_users')->default('limited');
             $table->double('nbr_users')->default(2);
             $table->string('limit_deposits')->default('limited');
@@ -46,8 +46,11 @@ class CreateEnterprisesettingsTable extends Migration
             $table->string('limit_pos')->default('limited');
             $table->double('nbr_pos')->default(1);
             $table->string('language')->default("fr");
+            $table->bigInteger('plan_id')->unsigned()->nullable();
+            $table->foreign('plan_id')->references('id')->on('plans')->onDelete('cascade'); 
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
+            $table->enum('mode',['test','plan',''])->default('test');
             $table->timestamps();
         });
     }

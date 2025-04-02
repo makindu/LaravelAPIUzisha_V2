@@ -31,6 +31,7 @@ use App\Models\OtherEntries;
 use App\Models\StockHistoryController;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 
 class EnterprisesController extends Controller
 {
@@ -50,6 +51,19 @@ class EnterprisesController extends Controller
     }
 
     /**
+     * run seeders
+     */
+    public function run_seeders(Request $request){
+        if ($request['criteria']=="plans") {
+            Artisan::call('db:seed',['--class'=>'PlansSeeder']);
+            return response()->json(['message' => 'Seeder exécuté']);
+        }else{
+            return response()->json(['message' => 'no criteria sent']);
+        }
+    }
+        
+
+    /**
      * Show the form for creating a new resource.
      *
      * @return \Illuminate\Http\Response
@@ -63,12 +77,12 @@ class EnterprisesController extends Controller
      * update enterprises status
      */
     public function updatestatus(Request $request){
-        return response()->json([
-            "status"=>400,
-            "message"=>"error",
-            "error"=>"user not find",
-            "data"=>null
-        ]); 
+        // return response()->json([
+        //     "status"=>400,
+        //     "message"=>"error",
+        //     "error"=>"user not find",
+        //     "data"=>null
+        // ]); 
         $eses=[];
         if ($request['done_by']) {
             try {
@@ -143,10 +157,6 @@ class EnterprisesController extends Controller
 
             //create default settings
             $settings=enterprisesettings::create([
-                'storage'=>200000,
-                'nbr_users'=>5,
-                'nbr_deposits'=>1,
-                'language'=>'fr',
                 'enterprise_id'=>$new->id
             ]);
             //create role and give it to the owner

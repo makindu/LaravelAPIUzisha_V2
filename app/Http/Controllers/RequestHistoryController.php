@@ -30,6 +30,48 @@ class RequestHistoryController extends Controller
         return $list;
     }
 
+     /**
+     * search with pagination
+     */
+    public function searchingrequesthistories(Request $request){
+              
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser['user_type']=='super_admin') {
+            
+            $list =requestHistory::query()
+                ->join('funds', 'request_histories.fund_id', '=', 'funds.id')
+                ->join('moneys', 'funds.money_id', '=', 'moneys.id')
+                ->where('request_histories.enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('request_histories.uuid', 'LIKE', "%$searchTerm%")
+                        ->orWhere('request_histories.amount', 'LIKE', "%$searchTerm%")
+                        ->orWhere('request_histories.type', 'LIKE', "%$searchTerm%")
+                        ->orWhere('request_histories.beneficiary', 'LIKE', "%$searchTerm%")
+                        ->orWhere('request_histories.provenance', 'LIKE', "%$searchTerm%")
+                        ->orWhere('request_histories.motif', 'LIKE', "%$searchTerm%")
+                        ->orWhere('request_histories.status', 'LIKE', "%$searchTerm%")
+                        ->orWhere('request_histories.sold', 'LIKE', "%$searchTerm%")
+                        ->orWhere('funds.description', 'LIKE', "%$searchTerm%")
+                        ->orWhere('moneys.abreviation', 'LIKE', "%$searchTerm%")
+                        ->orWhere('moneys.money_name', 'LIKE', "%$searchTerm%");
+                })
+                ->select('request_histories.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+
+        } else {
+           
+        }
+    }
+
     /**
      * Show the form for creating a new resource.
      *

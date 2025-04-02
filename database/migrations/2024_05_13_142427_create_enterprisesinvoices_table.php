@@ -17,18 +17,17 @@ class CreateEnterprisesinvoicesTable extends Migration
             $table->id();
             $table->bigInteger('enterprise_id')->unsigned();
             $table->foreign('enterprise_id')->references('id')->on('enterprises')->onDelete('cascade');
-            $table->bigInteger('user_id')->unsigned();
-            $table->foreign('user_id')->references('id')->on('users');
-            $table->date('from');
-            $table->date('to');
-            $table->string('type');
-            $table->string('status')->default("pending");
+            $table->foreignId('plan_id')->nullable()->constrained()->onDelete('set null');
+            $table->decimal('amount', 10, 2);
+            $table->string('currency', 5)->default('USD');
+            $table->dateTime('invoice_date'); // Date de la facture
+            $table->dateTime('due_date')->nullable (); // Date limite de paiement
+            $table->enum('status', ['pending', 'paid', 'failed', 'canceled'])->default('pending');
+            $table->string('payment_method')->nullable(); // Ex: Stripe, PayPal, Virement
+            $table->json('details')->nullable(); // Stocke des infos supplémentaires (ex: TVA, réductions)
             $table->string('uuid');
-            $table->integer('nbrmonth');
-            $table->integer('nbrpersons');
-            $table->double('amount_due');
-            $table->double('unite_price');
-            $table->boolean('payed')->default(false);
+            $table->string('description')->nullable();
+            $table->json('payments')->nullable();
             $table->timestamps();
         });
     }

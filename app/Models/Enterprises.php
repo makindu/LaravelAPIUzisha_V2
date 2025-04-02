@@ -36,4 +36,9 @@ class Enterprises extends Model
         'date_from_fidelity',
         'date_to_fidelity'
     ];
+
+    public function invoices()
+    {
+        return $this->hasMany(enterprisesinvoices::class);
+    }
 }

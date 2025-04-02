@@ -6,6 +6,7 @@ use App\Models\enterprisesinvoices;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreenterprisesinvoicesRequest;
 use App\Http\Requests\UpdateenterprisesinvoicesRequest;
+use Exception;
 use PhpParser\Node\Stmt\TryCatch;
 
 class EnterprisesinvoicesController extends Controller
@@ -26,11 +27,11 @@ class EnterprisesinvoicesController extends Controller
                 "error"=>null,
                 "data"=>$invoices
             ]);
-        } catch (\Throwable $th) {
+        } catch (Exception $th) {
             return  response()->json([
                 "status"=>500,
                 "message"=>"error occured",
-                "error"=>$th,
+                "error"=>$th->getMessage(),
                 "data"=>null
             ]);
         }
@@ -68,11 +69,11 @@ class EnterprisesinvoicesController extends Controller
                 "error"=>null,
                 "data"=>$result
             ]);
-        } catch (\Throwable $th) {
+        } catch (Exception $th) {
             return  response()->json([
                 "status"=>500,
                 "message"=>"error occured",
-                "error"=>$th,
+                "error"=>$th->getMessage(),
                 "data"=>null
             ]);
         }

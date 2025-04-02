@@ -1,5 +1,16 @@
 <?php
 
+// return [
+//     'paths' => ['api/*', 'storage/app/public/uploads/*'], // Autorise les requêtes sur ces routes
+//     'allowed_methods' => ['*'], // Autorise toutes les méthodes (GET, POST, etc.)
+//     'allowed_origins' => ['*'], // Autorise les requêtes venant de ton frontend Ionic
+//     'allowed_origins_patterns' => ['*'],
+//     'allowed_headers' => ['*'], // Autorise tous les headers
+//     'exposed_headers' => ['*'],
+//     'max_age' => 0,
+//     'supports_credentials' =>true, // Mets à true si tu utilises des cookies ou sessions cross-origin
+// ];
+
 return [
 
     /*
@@ -13,7 +24,7 @@ return [
     |
     | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
     |
-    */
+//     */
 
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 

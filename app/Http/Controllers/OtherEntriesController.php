@@ -116,6 +116,63 @@ class OtherEntriesController extends Controller
             return $listdata;
         }
     }
+
+    
+    public function searchdoneby(Request $request){
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser['user_type']=='super_admin') {
+            
+            $list =OtherEntries::leftJoin('accounts', 'other_entries.account_id', '=', 'accounts.id')
+                ->where('other_entries.enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('other_entries.motif', 'LIKE', "%$searchTerm%")
+                        ->orWhere('other_entries.amount', 'LIKE', "%$searchTerm%")
+                        ->orWhere('other_entries.uuid', 'LIKE', "%$searchTerm%")
+                        ->orWhere('other_entries.done_at', 'LIKE', "%$searchTerm%")
+                        ->orWhere('other_entries.beneficiary', 'LIKE', "%$searchTerm%")
+                        ->orWhere('other_entries.is_validate', 'LIKE', "%$searchTerm%")
+                        ->orWhere('accounts.name', 'LIKE', "%$searchTerm%")
+                        ->orWhere('accounts.description', 'LIKE', "%$searchTerm%")
+                        ->orWhere('accounts.uuid', 'LIKE', "%$searchTerm%");
+                })
+                ->select('other_entries.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+
+        } else {
+            
+            $list =OtherEntries::leftJoin('accounts', 'other_entries.account_id', '=', 'accounts.id')
+            ->where('other_entries.user_id', '=', $actualuser['id'])
+            ->where(function($query) use ($searchTerm) {
+                $query->where('other_entries.motif', 'LIKE', "%$searchTerm%")
+                    ->orWhere('other_entries.amount', 'LIKE', "%$searchTerm%")
+                    ->orWhere('other_entries.uuid', 'LIKE', "%$searchTerm%")
+                    ->orWhere('other_entries.done_at', 'LIKE', "%$searchTerm%")
+                    ->orWhere('other_entries.beneficiary', 'LIKE', "%$searchTerm%")
+                    ->orWhere('other_entries.is_validate', 'LIKE', "%$searchTerm%")
+                    ->orWhere('accounts.name', 'LIKE', "%$searchTerm%")
+                    ->orWhere('accounts.description', 'LIKE', "%$searchTerm%")
+                    ->orWhere('accounts.uuid', 'LIKE', "%$searchTerm%");
+            })
+            ->select('other_entries.*')
+            ->paginate(10)
+            ->appends($request->query());
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+        }
+    }
+
     /**
      * Show the form for editing the specified resource.
      *

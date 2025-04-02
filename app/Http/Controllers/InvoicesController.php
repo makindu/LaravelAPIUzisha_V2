@@ -1602,9 +1602,72 @@ class InvoicesController extends Controller
                 return $listdata;
             }
         }
-        
+    }    
+    
+    /**
+      * searching invoices for a specific users
+      */
+    public function searchingforaspecificuser(Request $request){
       
-      
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser['user_type']=='super_admin') {
+            
+            $list = Invoices::query()
+                ->leftJoin('customer_controllers', 'invoices.customer_id', '=', 'customer_controllers.id')
+                ->join('invoice_details', 'invoices.id', '=', 'invoice_details.invoice_id')
+                ->join('services_controllers', 'invoice_details.service_id', '=', 'services_controllers.id')
+                ->where('invoices.enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('invoices.uuid', 'LIKE', "%$searchTerm%")
+                        ->orWhere('invoices.netToPay', 'LIKE', "%$searchTerm%")
+                        ->orWhere('invoices.total', 'LIKE', "%$searchTerm%")
+                        ->orWhere('customer_controllers.customerName', 'LIKE', "%$searchTerm%")
+                        ->orWhere('customer_controllers.phone', 'LIKE', "%$searchTerm%")
+                        ->orWhere('customer_controllers.mail', 'LIKE', "%$searchTerm%")
+                        ->orWhere('services_controllers.name', 'LIKE', "%$searchTerm%")
+                        ->orWhere('services_controllers.description', 'LIKE', "%$searchTerm%")
+                        ->orWhere('services_controllers.codebar', 'LIKE', "%$searchTerm%");
+                })
+                ->select('invoices.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+
+        } else {
+            $list = Invoices::query()
+                ->leftJoin('customer_controllers', 'invoices.customer_id', '=', 'customer_controllers.id')
+                ->join('invoice_details', 'invoices.id', '=', 'invoice_details.invoice_id')
+                ->join('services_controllers', 'invoice_details.service_id', '=', 'services_controllers.id')
+                ->where('invoices.edited_by_id', '=',$actualuser['id'])
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('invoices.uuid', 'LIKE', "%$searchTerm%")
+                        ->orWhere('invoices.netToPay', 'LIKE', "%$searchTerm%")
+                        ->orWhere('invoices.total', 'LIKE', "%$searchTerm%")
+                        ->orWhere('customer_controllers.customerName', 'LIKE', "%$searchTerm%")
+                        ->orWhere('customer_controllers.phone', 'LIKE', "%$searchTerm%")
+                        ->orWhere('customer_controllers.mail', 'LIKE', "%$searchTerm%")
+                        ->orWhere('services_controllers.name', 'LIKE', "%$searchTerm%")
+                        ->orWhere('services_controllers.description', 'LIKE', "%$searchTerm%")
+                        ->orWhere('services_controllers.codebar', 'LIKE', "%$searchTerm%");
+                })
+                ->select('invoices.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+
+        }
     }
 
     public function enterpriseorders($enterpriseid){

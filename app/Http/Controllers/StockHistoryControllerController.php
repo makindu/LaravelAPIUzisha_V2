@@ -41,6 +41,81 @@ class StockHistoryControllerController extends Controller
         
     }
 
+     /**
+     * searching stock histories by done paginated
+     */
+    public function searchingstockhistorybydoneby(Request $request){
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser['user_type']=='super_admin') {
+        
+            $list =StockHistoryController::join('services_controllers', 'stock_history_controllers.service_id', '=', 'services_controllers.id')
+                ->leftjoin('provider_controllers', 'stock_history_controllers.provider_id', '=', 'provider_controllers.id')
+                ->where('stock_history_controllers.enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('stock_history_controllers.quantity', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.total', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.price', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.motif', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.note', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.type', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.type_approvement', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.uuid', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.done_at', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.providerName', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.adress', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.phone', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.type', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.mail', 'LIKE', "%$searchTerm%")
+                    ->orWhere('services_controllers.name', 'LIKE', "%$searchTerm%")
+                    ->orWhere('services_controllers.description', 'LIKE', "%$searchTerm%")
+                    ->orWhere('services_controllers.codebar', 'LIKE', "%$searchTerm%");
+                })
+                ->select('stock_history_controllers.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+
+        } else {
+                $list =StockHistoryController::join('services_controllers', 'stock_history_controllers.service_id', '=', 'services_controllers.id')
+                ->leftjoin('provider_controllers', 'stock_history_controllers.provider_id', '=', 'provider_controllers.id')
+                ->where('stock_history_controllers.user_id', '=', $actualuser['id'])
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('stock_history_controllers.quantity', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.total', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.price', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.motif', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.note', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.type', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.type_approvement', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.uuid', 'LIKE', "%$searchTerm%")
+                    ->orWhere('stock_history_controllers.done_at', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.providerName', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.adress', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.phone', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.type', 'LIKE', "%$searchTerm%")
+                    ->orWhere('provider_controllers.mail', 'LIKE', "%$searchTerm%")
+                    ->orWhere('services_controllers.name', 'LIKE', "%$searchTerm%")
+                    ->orWhere('services_controllers.description', 'LIKE', "%$searchTerm%")
+                    ->orWhere('services_controllers.codebar', 'LIKE', "%$searchTerm%");
+                })
+                ->select('stock_history_controllers.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+
+            return $list;
+        }
+    }
+
     /**
      * Show the form for creating a new resource.
      *

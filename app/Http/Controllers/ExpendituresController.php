@@ -51,6 +51,64 @@ class ExpendituresController extends Controller
         }
     }
 
+    public function searchdoneby(Request $request){
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser['user_type']=='super_admin') {
+            
+            $list =Expenditures::leftJoin('accounts', 'expenditures.account_id', '=', 'accounts.id')
+                ->where('expenditures.enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('expenditures.motif', 'LIKE', "%$searchTerm%")
+                        ->orWhere('expenditures.amount', 'LIKE', "%$searchTerm%")
+                        ->orWhere('expenditures.uuid', 'LIKE', "%$searchTerm%")
+                        ->orWhere('expenditures.done_at', 'LIKE', "%$searchTerm%")
+                        ->orWhere('expenditures.beneficiary', 'LIKE', "%$searchTerm%")
+                        ->orWhere('expenditures.is_validate', 'LIKE', "%$searchTerm%")
+                        ->orWhere('accounts.name', 'LIKE', "%$searchTerm%")
+                        ->orWhere('accounts.description', 'LIKE', "%$searchTerm%")
+                        ->orWhere('accounts.uuid', 'LIKE', "%$searchTerm%")
+                        ->orWhere('expenditures.status', 'LIKE', "%$searchTerm%");
+                })
+                ->select('expenditures.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+
+        } else {
+            
+            $list =Expenditures::leftJoin('accounts', 'expenditures.account_id', '=', 'accounts.id')
+            ->where('expenditures.user_id', '=', $actualuser['id'])
+            ->where(function($query) use ($searchTerm) {
+                $query->where('expenditures.motif', 'LIKE', "%$searchTerm%")
+                    ->orWhere('expenditures.amount', 'LIKE', "%$searchTerm%")
+                    ->orWhere('expenditures.uuid', 'LIKE', "%$searchTerm%")
+                    ->orWhere('expenditures.done_at', 'LIKE', "%$searchTerm%")
+                    ->orWhere('expenditures.beneficiary', 'LIKE', "%$searchTerm%")
+                    ->orWhere('expenditures.is_validate', 'LIKE', "%$searchTerm%")
+                    ->orWhere('accounts.name', 'LIKE', "%$searchTerm%")
+                    ->orWhere('accounts.description', 'LIKE', "%$searchTerm%")
+                    ->orWhere('accounts.uuid', 'LIKE', "%$searchTerm%")
+                    ->orWhere('expenditures.status', 'LIKE', "%$searchTerm%");
+            })
+            ->select('expenditures.*')
+            ->paginate(10)
+            ->appends($request->query());
+
+
+        $list->getCollection()->transform(function ($item){
+            return $this->show($item);
+        });
+        return $list;
+        }
+    }
+
     public function byaccount(Request $request){
 
         if(isset($request['from']) && !empty($request['from']) && isset($request['to']) && !empty($request['to'])){

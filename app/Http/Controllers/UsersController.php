@@ -46,6 +46,46 @@ class UsersController extends Controller
         return $listdata;
     }
 
+    /**
+     * searching users with pagination
+     */
+    public function searchingusers(Request $request){
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser) {
+                $list =User::query()
+                ->join('usersenterprises','users.id','=','usersenterprises.enterprise_id')
+                ->where('usersenterprises.enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('user_name', 'LIKE', "%$searchTerm%")
+                    ->orWhere('user_mail', 'LIKE', "%$searchTerm%")
+                    ->orWhere('user_phone', 'LIKE', "%$searchTerm%")
+                    ->orWhere('user_type', 'LIKE', "%$searchTerm%")
+                    ->orWhere('status', 'LIKE', "%$searchTerm%")
+                    ->orWhere('note', 'LIKE', "%$searchTerm%")
+                    ->orWhere('full_name', 'LIKE', "%$searchTerm%")
+                    ->orWhere('uuid', 'LIKE', "%$searchTerm%");
+                })
+                ->select('users.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+            $list->getCollection()->transform(function ($item){
+                $data = $this->show($item);
+                unset($data['role_permissions'],$data['user_password'],$data['remember_token']);
+                return $data;
+            });
+            return $list;
+        }else{
+            return response()->json([
+                "status"=>400,
+                "data"=>null,
+                "message"=>"incorrect data"
+            ],400);
+        }
+    }
+
     public function members_validation(Request $request){
         if ($request['criteria']==="all" && $request['enterprise_id']){
             try{

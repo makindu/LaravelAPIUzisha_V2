@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\Response;
 
 class LibrariesController extends Controller
 {
@@ -48,6 +49,32 @@ class LibrariesController extends Controller
        
     }
 
+    /**
+     * get file by name
+     */
+    public function getfile($filename){
+        return json_encode(["path"=>$filename]);
+        // $path = storage_path("app/public/uploads/{$filename}");
+        // return json_encode(["path"=>$path]);
+    
+        // if (!file_exists($path)) {
+        //     return response()->json(['error' => 'File not found'], 404);
+        // }
+    
+        // return Response::file($path);
+    }
+
+    public function getfilebyname(Request $request){
+         $path = storage_path("app/public/uploads/{$request['filename']}");
+        // return json_encode(["path"=>$path]);
+    
+        if (!file_exists($path)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        return Response::file($path);
+        // return json_encode(["path"=>$path]);
+    }
     /**
      * Delete multiple data
      */

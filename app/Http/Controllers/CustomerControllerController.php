@@ -24,6 +24,40 @@ class CustomerControllerController extends Controller
         return $listdata;
     }
 
+     /**
+     * searching stock histories by done paginated
+     */
+    public function searchingcustomersbypagination(Request $request){
+        $searchTerm = $request->query('keyword', '');
+        $enterpriseId = $request->query('enterprise_id', 0);  
+        $actualuser=$this->getinfosuser($request->query('user_id'));
+        if ($actualuser) {
+                $list =CustomerController::where('enterprise_id', '=', $enterpriseId)
+                ->where(function($query) use ($searchTerm) {
+                    $query->where('customerName', 'LIKE', "%$searchTerm%")
+                    ->orWhere('adress', 'LIKE', "%$searchTerm%")
+                    ->orWhere('phone', 'LIKE', "%$searchTerm%")
+                    ->orWhere('mail', 'LIKE', "%$searchTerm%")
+                    ->orWhere('type', 'LIKE', "%$searchTerm%")
+                    ->orWhere('uuid', 'LIKE', "%$searchTerm%");
+                })
+                ->select('customer_controllers.*')
+                ->paginate(10)
+                ->appends($request->query());
+
+            $list->getCollection()->transform(function ($item){
+                return $this->show($item);
+            });
+            return $list;
+        }else{
+            return response()->json([
+                "status"=>400,
+                "data"=>null,
+                "message"=>"incorrect data"
+            ],400);
+        }
+    }
+
     public function anonymous($enterpriseid){
         
         $customer=CustomerController::where('customerName','LIKE',"%anonyme%")->where('enterprise_id','=',$enterpriseid)->get()->first();
