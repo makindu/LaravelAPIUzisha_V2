@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\OtherEntries;
 use App\Http\Requests\StoreOtherEntriesRequest;
 use App\Http\Requests\UpdateOtherEntriesRequest;
+use Exception;
 use Illuminate\Http\Request;
 
 class OtherEntriesController extends Controller
@@ -21,6 +22,25 @@ class OtherEntriesController extends Controller
             return $this->show($item);
         });
         return $listdata;
+    }
+
+    public function getotherentrybyid($entryid){
+        try{
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$this->show(OtherEntries::find($entryid))
+            ]);
+            
+        }catch(Exception $e){
+            return response()->json([
+                "message"=>"error",
+                "status"=>200,
+                "error"=>$e->getMessage(),
+                "data"=>null
+            ]);
+        }
     }
 
     public function byaccount(Request $request){

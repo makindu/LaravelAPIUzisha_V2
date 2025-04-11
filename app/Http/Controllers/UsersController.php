@@ -55,7 +55,7 @@ class UsersController extends Controller
         $actualuser=$this->getinfosuser($request->query('user_id'));
         if ($actualuser) {
                 $list =User::query()
-                ->join('usersenterprises','users.id','=','usersenterprises.enterprise_id')
+                ->join('usersenterprises','users.id','=','usersenterprises.user_id')
                 ->where('usersenterprises.enterprise_id', '=', $enterpriseId)
                 ->where(function($query) use ($searchTerm) {
                     $query->where('user_name', 'LIKE', "%$searchTerm%")

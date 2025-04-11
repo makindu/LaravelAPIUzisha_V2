@@ -54,6 +54,28 @@ class InvoicesController extends Controller
     }
 
     /**
+     * get invoice by Id
+     */
+    public function getinvoicebyid($invoiceid){
+        try{
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$this->show(Invoices::find($invoiceid))
+            ]);
+            
+        }catch(Exception $e){
+            return response()->json([
+                "message"=>"error",
+                "status"=>200,
+                "error"=>$e->getMessage(),
+                "data"=>null
+            ]);
+        }  
+    }
+
+    /**
      * Cancelling
      */
     public function cancelling(Request $request){

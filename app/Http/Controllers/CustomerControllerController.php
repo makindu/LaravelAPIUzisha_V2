@@ -24,6 +24,10 @@ class CustomerControllerController extends Controller
         return $listdata;
     }
 
+    public function getcustomerbyId($customerId){
+        return $this->show(CustomerController::find($customerId));
+    }
+
      /**
      * searching stock histories by done paginated
      */

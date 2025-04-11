@@ -27,6 +27,28 @@ class ExpendituresController extends Controller
     }
 
     /**
+     * get expenditure by Id
+     */
+    public function getexpenditurebyid($expenditureId){
+        try{
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$this->show(Expenditures::find($expenditureId))
+            ]);
+            
+        }catch(Exception $e){
+            return response()->json([
+                "message"=>"error",
+                "status"=>200,
+                "error"=>$e->getMessage(),
+                "data"=>null
+            ]);
+        }
+    }
+
+    /**
      * Collect all expenditures done by a user
      */
     public function doneby(Request $request){

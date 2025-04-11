@@ -41,6 +41,25 @@ class StockHistoryControllerController extends Controller
         
     }
 
+    public function getStockHistoryById($mouvementId){
+        try{
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$this->show(StockHistoryController::find($mouvementId))
+            ]);
+            
+        }catch(Exception $e){
+            return response()->json([
+                "message"=>"error",
+                "status"=>200,
+                "error"=>$e->getMessage(),
+                "data"=>null
+            ]);
+        }  
+    }
+
      /**
      * searching stock histories by done paginated
      */

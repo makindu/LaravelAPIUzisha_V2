@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreDebtPaymentsRequest;
 use App\Http\Requests\UpdateDebtPaymentsRequest;
 use App\Models\CustomerController;
+use Exception;
 use Illuminate\Http\Request;
 use stdClass;
 
@@ -26,6 +27,25 @@ class DebtPaymentsController extends Controller
             return $this->show($item);
         });
         return $listdata;
+    }
+
+    public function getpaymentbyid($paymentid){
+        try{
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$this->show(DebtPayments::find($paymentid))
+            ]);
+            
+        }catch(Exception $e){
+            return response()->json([
+                "message"=>"error",
+                "status"=>200,
+                "error"=>$e->getMessage(),
+                "data"=>null
+            ]);
+        }  
     }
 
      /**
@@ -317,7 +337,8 @@ class DebtPaymentsController extends Controller
         ->leftjoin('invoices as I','D.invoice_id','=','I.id')
         ->leftjoin('customer_controllers as C','I.customer_id','=','C.id')
         ->leftjoin('users as U','debt_payments.done_by_id','=','U.id')
-        ->where('debt_payments.id','=',$debtPayments['id'])->get(['debt_payments.*','C.customerName','C.id as customerId','I.id as invoiceId','U.user_name as done_by_name'])[0];
+        ->where('debt_payments.id','=',$debtPayments['id'])
+        ->get(['debt_payments.*','C.customerName','C.id as customerId','I.id as invoiceId','U.user_name as done_by_name','D.amount as total_debt','D.sold'])->first();
     }
 
     /**

@@ -194,6 +194,7 @@ Route::delete('/funds/delete/{id}',[FundsController::class,'destroy2']);
 Route::patch('funds/update/{funds}',[FundsController::class,'update2']);
 Route::post('/funds/requesthistories',[FundsController::class,'requesthistoriesbyagent']);
 Route::get('/searchingrequesthistories',[RequestHistoryController::class,'searchingrequesthistories']);
+Route::get('/funds/getOperationById/{id}',[RequestHistoryController::class,'getOperationById']);
 Route::post('/funds/savemultiples',[RequestHistoryController::class,'savemultiple']);
 Route::post('/funds/operations/update',[RequestHistoryController::class,'operationsupdate']);
 
@@ -339,6 +340,7 @@ Route::post('/stockhistory/report/bydepositsbasedonoperationdate',[StockHistoryC
 Route::post('/stockhistory/report/reportstockgroupedbydates',[StockHistoryControllerController::class,'reportstockgroupedbydates']);
 Route::post('/stockhistory/update/{id}',[StockHistoryControllerController::class,'update']);
 Route::get('/searchingstockhistorybydoneby',[StockHistoryControllerController::class,'searchingstockhistorybydoneby']);
+Route::get('/stockhistory/getStockHistoryById/{id}',[StockHistoryControllerController::class,'getStockHistoryById']);
 //Transfert stock
 Route::apiResource('transfertstock',TransfertstockController::class);
 Route::get('/transfertstock/enterprise/{id}',[TransfertstockController::class,'index']);
@@ -409,6 +411,7 @@ Route::delete('/categoriescustomers/delete/{id}',[CategoriesCustomerControllerCo
 Route::apiResource('customers',CustomerControllerController::class);
 Route::get('/customers/enterprise/{id}',[CustomerControllerController::class,'index']);
 Route::get('/anonymous/customers/enterprise/{id}',[CustomerControllerController::class,'anonymous']);
+Route::get('/customers/byid/{id}',[CustomerControllerController::class,'getcustomerbyId']);
 Route::put('/customers/update/{id}',[CustomerControllerController::class,'update2']);
 Route::patch('/customers/update/{id}',[CustomerControllerController::class,'update2']);
 Route::delete('/customers/delete/{id}',[CustomerControllerController::class,'delete']);
@@ -477,6 +480,7 @@ Route::apiResource('invoices',InvoicesController::class);
 Route::post('/newinvoice/mobile',[InvoicesController::class,'storemobile']);
 Route::post('/newinvoice/garage',[InvoicesController::class,'storegarage']);
 Route::get('/invoices/enterprise/{id}',[InvoicesController::class,'index']);
+Route::get('/invoices/getinvoicebyid/{id}',[InvoicesController::class,'getinvoicebyid']);
 Route::get('/invoices/customer/{id}',[InvoicesController::class,'foracustomer']);
 Route::post('/invoices/filteredcustomer',[InvoicesController::class,'forACustomerFiltered']);
 Route::post('/invoices/reportbyuser',[InvoicesController::class,'reportUserSelling']);
@@ -506,10 +510,12 @@ Route::post('/reports/credits/debtsfilteredbycriteria',[DebtsController::class,'
 Route::post('/debts/customer',[DebtsController::class,'compteCourant']);
 Route::post('/debts/customer/filteredcomptecourantcustomer',[DebtsController::class,'FilteredcompteCourant']);
 Route::post('/debts/payment',[DebtsController::class,'payment_debt']);
+Route::get('/debts/getDebtById/{id}',[DebtsController::class,'getDebtById']);
 Route::post('/debts/debt/payments',[DebtsController::class,'getPayments']);
 
 Route::apiResource('payments',DebtPaymentsController::class);
 Route::get('/searchpaymentsdebtsbydoneby',[DebtPaymentsController::class,'searchpaymentsdebtsbydoneby']);
+Route::get('/payments/getbyid/{id}',[DebtPaymentsController::class,'getpaymentbyid']);
 //Financial mouvements
 Route::apiResource('accounts',AccountsController::class);
 Route::put('accounts/update/{id}',[AccountsController::class,'update2']);
@@ -521,6 +527,7 @@ Route::post('/accounts/importation',[AccountsController::class,'importation']);
 
 Route::apiResource('expenditures',ExpendituresController::class);
 Route::post('/expenditures/doneby',[ExpendituresController::class,'doneby']);
+Route::get('/expenditures/getexpenditurebyid/{id}',[ExpendituresController::class,'getexpenditurebyid']);
 Route::get('/searchexpendituresdoneby',[ExpendituresController::class,'searchdoneby']);
 Route::post('/expenditures/byaccount',[ExpendituresController::class,'byaccount']);
 Route::delete('/expenditures/delete/{id}',[ExpendituresController::class,'delete']);
@@ -532,6 +539,7 @@ Route::get('/otherentries/update/{id}',[OtherEntriesController::class,'update2']
 Route::get('/otherentries/delete/{id}',[OtherEntriesController::class,'delete']);
 Route::get('/otherentries/doneby/{id}',[OtherEntriesController::class,'doneby']);
 Route::get('/searchotherentriesdoneby',[OtherEntriesController::class,'searchdoneby']);
+Route::get('/otherentries/getotherentrybyid/{id}',[OtherEntriesController::class,'getotherentrybyid']);
 Route::post('/otherentries/dailyreport',[OtherEntriesController::class,'doneby']);
 
 /**

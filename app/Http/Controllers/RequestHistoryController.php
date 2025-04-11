@@ -30,6 +30,25 @@ class RequestHistoryController extends Controller
         return $list;
     }
 
+    public function getOperationById($mouvementId){
+        try{
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$this->show(requestHistory::find($mouvementId))
+            ]);
+            
+        }catch(Exception $e){
+            return response()->json([
+                "message"=>"error",
+                "status"=>200,
+                "error"=>$e->getMessage(),
+                "data"=>null
+            ]);
+        }  
+    }
+
      /**
      * search with pagination
      */

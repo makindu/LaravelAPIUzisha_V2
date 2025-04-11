@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateDebtsRequest;
 use App\Models\CustomerController;
 use App\Models\InvoiceDetails;
 use App\Models\Invoices;
+use Exception;
 use stdClass;
 
 class DebtsController extends Controller
@@ -29,6 +30,27 @@ class DebtsController extends Controller
         return $listdata;
     }
 
+    /**
+     * Get a single debt
+     */
+    public function getDebtById($debtId){
+        try{
+            return response()->json([
+                "message"=>"success",
+                "status"=>200,
+                "error"=>null,
+                "data"=>$this->show(Debts::find($debtId))
+            ]);
+            
+        }catch(Exception $e){
+            return response()->json([
+                "message"=>"error",
+                "status"=>200,
+                "error"=>$e->getMessage(),
+                "data"=>null
+            ]);
+        }
+    }
     /**
      * searching of debts by done paginated
      */
