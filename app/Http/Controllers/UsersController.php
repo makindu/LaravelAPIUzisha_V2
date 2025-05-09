@@ -47,6 +47,18 @@ class UsersController extends Controller
     }
 
     /**
+     * serdi pay feedback transactions
+     */
+    public function serditransactionsfeedback(Request $request){
+        return response()->json([
+            "status"=>200,
+            "message"=>"success",
+            "error"=>null,
+            "data"=>$request->all()
+        ]);
+    }
+
+    /**
      * searching users with pagination
      */
     public function searchingusers(Request $request){

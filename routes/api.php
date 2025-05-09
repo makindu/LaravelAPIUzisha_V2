@@ -110,7 +110,7 @@ use Illuminate\Http\Response;
 /** Users getways */
 
 //get all users and add new
-
+Route::post('/cerouzisha/serditransactionsfeedback',[UsersController::class,'serditransactionsfeedback']);
 Route::get('/storage/uploads/{filename}', function ($filename) {
     $path = storage_path("app/public/uploads/{$filename}");
 
